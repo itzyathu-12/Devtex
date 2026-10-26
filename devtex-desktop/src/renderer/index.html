@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://kdmifuuwifhuuqkfnyzn.supabase.co"
+    />
+    <meta name="theme-color" content="#090b10" />
+    <title>DEVTEX — Developer Workspace</title>
+    <link href="./assets/main.css" rel="stylesheet" />
+  </head>
+
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">D<span>.</span></div>
+          <div>
+            <div class="brand-name">DEVTEX</div>
+            <div class="brand-caption">DEVELOPER WORKSPACE</div>
+          </div>
+        </div>
+
+        <div class="nav-label">WORKSPACE</div>
+        <nav class="navigation">
+          <button class="nav-item active" data-page="Dashboard">
+            <span class="nav-icon">◫</span> Dashboard
+          </button>
+          <button class="nav-item" data-page="Projects">
+            <span class="nav-icon">▧</span> Projects
+          </button>
+          <button class="nav-item" data-page="Testing Engine">
+            <span class="nav-icon">⌘</span> Testing Engine
+            <span class="nav-count">BETA</span>
+          </button>
+          <button class="nav-item" data-page="Reports">
+            <span class="nav-icon">▤</span> Reports
+          </button>
+        </nav>
+
+        <div class="nav-label tools-label">TOOLS</div>
+        <nav class="navigation">
+          <button class="nav-item" data-page="Settings">
+            <span class="nav-icon">⚙</span> Settings
+          </button>
+        </nav>
+
+        <div class="sidebar-bottom">
+          <div class="system-indicator"><span></span> Desktop environment</div>
+          <div class="sidebar-version">DEV BUILD · v0.1.0</div>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div class="breadcrumb">
+            <span>DEVTEX</span>
+            <span class="slash">/</span>
+            <span id="breadcrumb-page">Dashboard</span>
+          </div>
+
+          <div class="topbar-right">
+            <button class="button button-secondary auth-button" id="sign-in">Sign in</button>
+
+            <button class="button button-primary auth-button" id="connect-github">
+              <span>⌘</span> Connect GitHub
+            </button>
+
+            <div class="avatar" id="user-avatar">D</div>
+          </div>
+        </header>
+
+        <section class="page-content">
+          <div class="welcome-row">
+            <div>
+              <div class="eyebrow">YOUR DEVELOPMENT COMMAND CENTER</div>
+              <h1 id="page-title">Welcome to <span>DEVTEX.</span></h1>
+              <p class="subtitle" id="page-subtitle">
+                Build, test, and improve your software from one workspace.
+              </p>
+            </div>
+
+            <button class="button button-primary" id="new-project">
+              <span>＋</span> New project
+            </button>
+          </div>
+
+          <div class="section-heading">
+            <h2>Overview</h2>
+            <span class="muted">YOUR WORKSPACE AT A GLANCE</span>
+          </div>
+
+          <div class="stats-grid">
+            <article class="stat-card">
+              <div class="stat-top">
+                <span class="stat-label">Projects</span>
+                <span class="stat-icon purple">▧</span>
+              </div>
+              <div class="stat-value" id="project-count">00</div>
+              <div class="stat-foot">Projects added to your workspace</div>
+            </article>
+
+            <article class="stat-card">
+              <div class="stat-top">
+                <span class="stat-label">Tests executed</span>
+                <span class="stat-icon green">⌘</span>
+              </div>
+              <div class="stat-value">—</div>
+              <div class="stat-foot">Testing engine not connected</div>
+            </article>
+
+            <article class="stat-card">
+              <div class="stat-top">
+                <span class="stat-label">Issues detected</span>
+                <span class="stat-icon orange">◇</span>
+              </div>
+              <div class="stat-value">—</div>
+              <div class="stat-foot">No scans have been performed</div>
+            </article>
+          </div>
+
+          <div class="content-grid">
+            <section class="panel project-panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>Your projects</h2>
+                  <p>Choose a project to get started.</p>
+                </div>
+                <button class="text-button" id="view-projects">View all ↗</button>
+              </div>
+
+              <div id="project-list" class="project-list">
+                <div class="empty-state">
+                  <div class="empty-icon">⌘</div>
+                  <h3>Your workspace starts here</h3>
+                  <p>Add a local project to begin building with DEVTEX.</p>
+                  <button class="button button-secondary" id="add-first-project">
+                    ＋ Add your first project
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel engine-panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>Testing Engine</h2>
+                  <p>Automated software testing</p>
+                </div>
+                <span class="status-pill"> <span></span> IN DEVELOPMENT </span>
+              </div>
+
+              <div class="engine-graphic">
+                <div class="engine-orbit orbit-one"></div>
+                <div class="engine-orbit orbit-two"></div>
+                <div class="engine-core">D<span>.</span></div>
+              </div>
+
+              <h3 class="engine-title">Ready when you are.</h3>
+              <p class="engine-description">
+                The interface is ready. The real testing and bug-detection engine will be connected
+                in a later build.
+              </p>
+
+              <button class="button button-primary full-width" id="run-scan">
+                Run demo scan <span>→</span>
+              </button>
+
+              <p class="demo-note">DEMO ONLY · DOES NOT SCAN REAL CODE</p>
+              <div id="scan-result" class="scan-result" role="status"></div>
+            </section>
+          </div>
+
+          <section
+            class="panel github-repositories-panel"
+            aria-labelledby="github-repositories-title"
+          >
+            <div class="panel-heading">
+              <div>
+                <h2 id="github-repositories-title">GitHub repositories</h2>
+                <p id="github-connection-label" role="status">Not connected</p>
+              </div>
+              <div class="github-repository-actions">
+                <button class="button button-secondary" id="github-refresh" disabled>
+                  Refresh
+                </button>
+                <button class="button button-secondary" id="github-disconnect" disabled>
+                  Disconnect
+                </button>
+              </div>
+            </div>
+            <div class="github-repository-toolbar">
+              <input
+                id="github-repository-search"
+                type="search"
+                placeholder="Search repositories"
+                aria-label="Search GitHub repositories"
+                disabled
+              />
+              <span id="github-repository-count" class="muted"></span>
+            </div>
+            <p id="github-repository-message" class="github-repository-message" role="status">
+              Connect GitHub to list public and private repositories available to your account.
+            </p>
+            <div
+              id="github-repository-list"
+              class="github-repository-list"
+              aria-live="polite"
+            ></div>
+          </section>
+
+          <section class="panel activity-panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Recent activity</h2>
+                <p>What's happening in your workspace</p>
+              </div>
+              <span class="muted">LATEST</span>
+            </div>
+
+            <div id="activity-list" class="activity-list">
+              <div class="activity-row">
+                <span class="activity-dot purple-dot"></span>
+                <div class="activity-copy">
+                  <strong>DEVTEX workspace initialized</strong>
+                  <span>Your local developer workspace is ready.</span>
+                </div>
+                <time>JUST NOW</time>
+              </div>
+            </div>
+          </section>
+
+          <footer class="footer">
+            <span> DEVTEX <span class="footer-dot">●</span> Built for developers. </span>
+            <span class="electron-version"></span>
+            <span class="chrome-version"></span>
+            <span class="node-version"></span>
+          </footer>
+        </section>
+      </main>
+    </div>
+
+    <!-- Authentication modal: outside the header and main content -->
+    <div class="modal-backdrop" id="auth-modal" hidden>
+      <section class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+        <button class="modal-close" id="close-auth" aria-label="Close sign-in dialog">×</button>
+
+        <div class="brand-mark auth-logo">D<span>.</span></div>
+
+        <h2 id="auth-title">Welcome to DEVTEX</h2>
+        <p class="auth-description">Sign in to your developer workspace.</p>
+
+        <button class="oauth-button" id="google-sign-in">
+          <span class="oauth-symbol">G</span>
+          Continue with Google
+        </button>
+
+        <button class="oauth-button" id="github-sign-in">
+          <span class="oauth-symbol">⌘</span>
+          Continue with GitHub
+        </button>
+
+        <p class="auth-footnote">OAuth authentication needs to be configured.</p>
+      </section>
+    </div>
+
+    <script type="module" src="./src/renderer.ts"></script>
+  </body>
+</html>
