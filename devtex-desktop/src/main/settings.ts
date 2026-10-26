@@ -14,7 +14,15 @@ declare const __GITHUB_OAUTH_CLIENT_STATUS__: ConfigurationValueStatus
 
 const preferencesPath = join(app.getPath('userData'), 'preferences.json')
 const startupPages: StartupPage[] = ['Dashboard', 'Settings']
-const defaultPreferences: AppPreferences = { reduceMotion: false, startupPage: 'Dashboard' }
+const defaultPreferences: AppPreferences = {
+  reduceMotion: false,
+  startupPage: 'Dashboard',
+  geminiModel: 'gemini-2.5-flash'
+}
+
+function isValidGeminiModel(value: unknown): value is string {
+  return typeof value === 'string' && /^gemini-[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/.test(value)
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -26,7 +34,14 @@ function validatePreferences(value: unknown): AppPreferences {
   if (!startupPages.includes(value.startupPage as StartupPage)) {
     throw new Error('Invalid startup page preference.')
   }
-  return { reduceMotion: value.reduceMotion, startupPage: value.startupPage as StartupPage }
+  const geminiModel =
+    value.geminiModel === undefined ? defaultPreferences.geminiModel : value.geminiModel
+  if (!isValidGeminiModel(geminiModel)) throw new Error('Invalid Gemini model identifier.')
+  return {
+    reduceMotion: value.reduceMotion,
+    startupPage: value.startupPage as StartupPage,
+    geminiModel
+  }
 }
 
 export async function getPreferences(): Promise<AppPreferences> {

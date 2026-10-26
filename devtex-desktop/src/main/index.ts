@@ -3,6 +3,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { GitHubRepositoryService } from './github-repositories'
+import { GeminiService } from './gemini'
 import { getPreferences, getRuntimeInfo, savePreferences } from './settings'
 import type { GitHubConnectionStatus } from '../shared/github'
 
@@ -23,6 +24,7 @@ const githubRepositories = new GitHubRepositoryService({
     }
   }
 })
+const gemini = new GeminiService()
 
 function assertTrustedSender(event: IpcMainInvokeEvent): void {
   if (!mainWindow || mainWindow.isDestroyed() || event.sender !== mainWindow.webContents) {
@@ -125,6 +127,36 @@ ipcMain.handle('settings:get-preferences', async (event) => {
 ipcMain.handle('settings:save-preferences', async (event, value: unknown) => {
   assertTrustedSender(event)
   return savePreferences(value)
+})
+
+ipcMain.handle('gemini:status', async (event) => {
+  assertTrustedSender(event)
+  return gemini.status()
+})
+
+ipcMain.handle('gemini:save-key', async (event, value: unknown) => {
+  assertTrustedSender(event)
+  return gemini.saveKey(value)
+})
+
+ipcMain.handle('gemini:remove-key', async (event) => {
+  assertTrustedSender(event)
+  return gemini.removeKey()
+})
+
+ipcMain.handle('gemini:set-model', async (event, value: unknown) => {
+  assertTrustedSender(event)
+  return gemini.setModel(value)
+})
+
+ipcMain.handle('gemini:test', async (event) => {
+  assertTrustedSender(event)
+  await gemini.testConnection()
+})
+
+ipcMain.handle('gemini:chat', async (event, value: unknown) => {
+  assertTrustedSender(event)
+  return gemini.chat(value)
 })
 
 ipcMain.on('auth:renderer-ready', (event) => {

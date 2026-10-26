@@ -19,6 +19,36 @@ export interface SanitizedDiagnosticEntry {
 export interface AppPreferences {
   reduceMotion: boolean
   startupPage: StartupPage
+  geminiModel: string
+}
+
+export interface GeminiStatus {
+  configured: boolean
+  model: string
+  credentialState: GeminiCredentialState
+  storageContext: GeminiStorageContext
+}
+
+export type GeminiCredentialState = 'missing' | 'stored' | 'unreadable'
+
+export interface GeminiStorageContext {
+  userDataDirectory: string
+  platform: string
+  packaged: boolean
+  backend: string
+}
+
+export interface GeminiChatMessage {
+  role: 'user' | 'assistant'
+  text: string
+}
+
+export interface GeminiChatRequest {
+  messages: GeminiChatMessage[]
+}
+
+export interface GeminiChatResponse {
+  text: string
 }
 
 export interface AppRuntimeInfo {
@@ -35,4 +65,4 @@ export interface AppRuntimeInfo {
 export type ConfigurationValueStatus = 'missing' | 'empty' | 'configured' | 'invalid'
 
 export type SettingsSection =
-  'account' | 'api' | 'runtime' | 'integrations' | 'preferences' | 'diagnostics' | 'about'
+  'account' | 'api' | 'chat' | 'runtime' | 'integrations' | 'preferences' | 'diagnostics' | 'about'

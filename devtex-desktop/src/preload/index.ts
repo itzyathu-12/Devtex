@@ -6,6 +6,7 @@ import type {
   GitHubRepositoryResult
 } from '../shared/github'
 import type { AppPreferences, AppRuntimeInfo } from '../shared/settings'
+import type { GeminiChatRequest, GeminiChatResponse, GeminiStatus } from '../shared/settings'
 
 // Custom APIs for renderer
 const api = {
@@ -25,6 +26,14 @@ const api = {
   getPreferences: (): Promise<AppPreferences> => ipcRenderer.invoke('settings:get-preferences'),
   savePreferences: (preferences: AppPreferences): Promise<AppPreferences> =>
     ipcRenderer.invoke('settings:save-preferences', preferences),
+  getGeminiStatus: (): Promise<GeminiStatus> => ipcRenderer.invoke('gemini:status'),
+  saveGeminiKey: (key: string): Promise<GeminiStatus> => ipcRenderer.invoke('gemini:save-key', key),
+  removeGeminiKey: (): Promise<GeminiStatus> => ipcRenderer.invoke('gemini:remove-key'),
+  setGeminiModel: (model: string): Promise<GeminiStatus> =>
+    ipcRenderer.invoke('gemini:set-model', model),
+  testGeminiConnection: (): Promise<void> => ipcRenderer.invoke('gemini:test'),
+  sendGeminiChat: (request: GeminiChatRequest): Promise<GeminiChatResponse> =>
+    ipcRenderer.invoke('gemini:chat', request),
   disconnectGitHubRepositories: (): Promise<GitHubConnectionStatus> =>
     ipcRenderer.invoke('github:disconnect'),
   openGitHubRepository: (url: string): Promise<void> =>

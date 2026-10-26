@@ -3,6 +3,8 @@ import type { GitHubConnectionStatus, GitHubRepository } from '../../shared/gith
 import type {
   AppPreferences,
   AppRuntimeInfo,
+  GeminiChatMessage,
+  GeminiStatus,
   SettingsSection,
   StartupPage
 } from '../../shared/settings'
@@ -10,6 +12,7 @@ import type {
 const settingsTitles: Record<SettingsSection, string> = {
   account: 'Account',
   api: 'API Configuration',
+  chat: 'AI Chat',
   runtime: 'Environment & Runtime',
   integrations: 'Integrations',
   preferences: 'Preferences',
@@ -18,7 +21,8 @@ const settingsTitles: Record<SettingsSection, string> = {
 }
 const settingsDescriptions: Record<SettingsSection, string> = {
   account: 'Manage your DEVTEX sign-in session.',
-  api: 'AI provider configuration available in this desktop build.',
+  api: 'Configure your Google Gemini API key and model.',
+  chat: 'Chat with Gemini using your saved API key.',
   runtime: 'Review non-sensitive application and configuration status.',
   integrations: 'Check the independent status of connected services.',
   preferences: 'Choose application behavior that persists on this device.',
@@ -29,8 +33,23 @@ type WorkspacePage = StartupPage | 'Projects' | 'Testing Engine' | 'Reports'
 let currentAccountEmail: string | null = null
 let currentGitHubStatus: GitHubConnectionStatus = { connected: false, connecting: false }
 let currentRuntimeInfo: AppRuntimeInfo | null = null
-let currentPreferences: AppPreferences = { reduceMotion: false, startupPage: 'Dashboard' }
+let currentPreferences: AppPreferences = {
+  reduceMotion: false,
+  startupPage: 'Dashboard',
+  geminiModel: 'gemini-2.5-flash'
+}
 let activeSettingsSection: SettingsSection = 'account'
+let currentGeminiStatus: GeminiStatus = {
+  configured: false,
+  model: 'gemini-2.5-flash',
+  credentialState: 'missing',
+  storageContext: {
+    userDataDirectory: 'Unavailable',
+    platform: 'unknown',
+    packaged: false,
+    backend: 'unknown'
+  }
+}
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
@@ -775,23 +794,12 @@ function renderSettingsSection(section: SettingsSection): void {
   }
 
   if (section === 'api') {
-    panel.append(
-      createInfoRow(
-        'AI provider',
-        'Not available',
-        'No AI provider client is implemented in this desktop application.'
-      ),
-      createInfoRow(
-        'API credentials',
-        'Not configured',
-        'No API key is collected or stored by this build.'
-      )
-    )
-    const note = document.createElement('p')
-    note.className = 'settings-notice'
-    note.textContent =
-      'AI-assisted workflows are planned for the separate DEVTEX CLI. This desktop build has no provider or model to configure or test.'
-    panel.append(note)
+    renderGeminiConfiguration(panel)
+    return
+  }
+
+  if (section === 'chat') {
+    renderGeminiChat(panel)
     return
   }
 
@@ -824,7 +832,7 @@ function renderSettingsSection(section: SettingsSection): void {
           configurationLabel(info.supabasePublishableKeyStatus)
         ),
         createInfoRow('GitHub OAuth Client ID', configurationLabel(info.githubOAuthClientStatus)),
-        createInfoRow('AI provider', 'Not implemented in this desktop build')
+        createInfoRow('Google Gemini', geminiCredentialLabel())
       )
     }
     if (section === 'diagnostics') {
@@ -865,11 +873,7 @@ function renderSettingsSection(section: SettingsSection): void {
         currentAccountEmail ? 'Connected' : 'Not connected',
         'Reflects the current authentication session only; no database health check was performed.'
       ),
-      createInfoRow(
-        'AI provider',
-        'Not configured',
-        'No desktop AI provider integration is implemented.'
-      )
+      createInfoRow('Google Gemini', geminiCredentialLabel(), `Model: ${currentGeminiStatus.model}`)
     )
     const actions = document.createElement('div')
     actions.className = 'settings-actions'
@@ -906,6 +910,11 @@ function connectionLabel(status: GitHubConnectionStatus): string {
   if (status.connecting) return 'Authorization in progress'
   if (status.connected) return `Connected${status.username ? ` as @${status.username}` : ''}`
   return 'Not connected'
+}
+
+function geminiCredentialLabel(): string {
+  if (currentGeminiStatus.credentialState === 'unreadable') return 'Unreadable'
+  return currentGeminiStatus.configured ? 'Configured' : 'Not configured'
 }
 
 function configurationLabel(status: AppRuntimeInfo['supabaseUrlStatus']): string {
@@ -971,7 +980,8 @@ function renderPreferences(panel: HTMLElement): void {
   save.addEventListener('click', () => {
     const next: AppPreferences = {
       reduceMotion: motion.checked,
-      startupPage: pageSelect.value as StartupPage
+      startupPage: pageSelect.value as StartupPage,
+      geminiModel: currentPreferences.geminiModel
     }
     save.disabled = true
     status.textContent = 'Saving…'
@@ -995,14 +1005,373 @@ function renderPreferences(panel: HTMLElement): void {
   panel.append(group)
 }
 
+function renderGeminiConfiguration(panel: HTMLElement): void {
+  const unreadable = currentGeminiStatus.credentialState === 'unreadable'
+  const providerRow = createInfoRow(
+    'Provider',
+    'Google Gemini',
+    unreadable
+      ? 'The saved key cannot be read in the current encryption context.'
+      : currentGeminiStatus.configured
+        ? 'API key is stored securely on this device.'
+        : 'No API key is stored.'
+  )
+  const configurationRow = createInfoRow(
+    'Configuration',
+    unreadable ? 'Unreadable' : currentGeminiStatus.configured ? 'Configured' : 'Not configured'
+  )
+  let recoveryNote: HTMLElement | null = null
+  const storageContext = currentGeminiStatus.storageContext
+  panel.append(
+    providerRow,
+    configurationRow,
+    createInfoRow(
+      'Credential storage context',
+      `${storageContext.packaged ? 'Packaged app' : 'Development app'} · ${storageContext.platform} · ${storageContext.backend}`,
+      storageContext.userDataDirectory
+    )
+  )
+
+  if (unreadable) {
+    recoveryNote = document.createElement('p')
+    recoveryNote.className = 'settings-notice gemini-recovery-note'
+    recoveryNote.setAttribute('role', 'alert')
+    recoveryNote.textContent =
+      'The saved credential has not been deleted or replaced. This can happen after changing the OS account, app data directory, or encryption backend. Compare the storage context above with the installation where the key was saved. To recover, choose Remove key, confirm the removal, then enter and save the key again.'
+    panel.append(recoveryNote)
+  }
+
+  const form = document.createElement('div')
+  form.className = 'settings-preferences gemini-configuration'
+  const modelLabel = document.createElement('label')
+  modelLabel.htmlFor = 'gemini-model'
+  modelLabel.textContent = 'Model identifier'
+  const model = document.createElement('input')
+  model.id = 'gemini-model'
+  model.type = 'text'
+  model.autocomplete = 'off'
+  model.maxLength = 88
+  model.value = currentGeminiStatus.model
+  model.placeholder = 'gemini-2.5-flash'
+  form.append(modelLabel, model)
+  const modelHelp = document.createElement('p')
+  modelHelp.className = 'settings-help'
+  modelHelp.textContent = 'Must begin with gemini-. Changes are saved separately from your API key.'
+  form.append(modelHelp)
+
+  const modelActions = document.createElement('div')
+  modelActions.className = 'settings-actions'
+  const saveModel = document.createElement('button')
+  saveModel.type = 'button'
+  saveModel.className = 'button button-secondary'
+  saveModel.textContent = 'Save model'
+  const test = document.createElement('button')
+  test.type = 'button'
+  test.className = 'button button-primary'
+  test.textContent = 'Test Connection'
+  const result = document.createElement('span')
+  result.className = 'settings-save-status'
+  result.setAttribute('role', 'status')
+  modelActions.append(saveModel, test, result)
+  form.append(modelActions)
+
+  const keyLabel = document.createElement('label')
+  keyLabel.htmlFor = 'gemini-api-key'
+  keyLabel.textContent = 'Gemini API key'
+  const keyRow = document.createElement('div')
+  keyRow.className = 'gemini-key-row'
+  const keyInput = document.createElement('input')
+  keyInput.id = 'gemini-api-key'
+  keyInput.type = 'password'
+  keyInput.autocomplete = 'new-password'
+  keyInput.spellcheck = false
+  keyInput.maxLength = 256
+  keyInput.placeholder = currentGeminiStatus.configured
+    ? unreadable
+      ? 'Remove the unreadable key before saving a replacement'
+      : 'Saved key is not shown'
+    : 'Enter your Gemini API key'
+  keyInput.setAttribute('aria-label', 'Gemini API key')
+  const reveal = document.createElement('button')
+  reveal.type = 'button'
+  reveal.className = 'button button-secondary'
+  reveal.textContent = 'Show'
+  reveal.setAttribute('aria-label', 'Show Gemini API key')
+  reveal.addEventListener('click', () => {
+    const visible = keyInput.type === 'password'
+    keyInput.type = visible ? 'text' : 'password'
+    reveal.textContent = visible ? 'Hide' : 'Show'
+    reveal.setAttribute('aria-label', `${visible ? 'Hide' : 'Show'} Gemini API key`)
+    keyInput.focus()
+  })
+  keyRow.append(keyInput, reveal)
+  form.append(keyLabel, keyRow)
+
+  const keyActions = document.createElement('div')
+  keyActions.className = 'settings-actions'
+  const saveKey = document.createElement('button')
+  saveKey.type = 'button'
+  saveKey.className = 'button button-primary'
+  saveKey.textContent = 'Save API key'
+  saveKey.disabled = unreadable
+  const removeKey = document.createElement('button')
+  removeKey.type = 'button'
+  removeKey.className = 'button button-secondary'
+  removeKey.textContent = 'Remove key'
+  removeKey.dataset.requiresGeminiKey = 'true'
+  removeKey.disabled = !currentGeminiStatus.configured
+  const keyStatus = document.createElement('span')
+  keyStatus.className = 'settings-save-status'
+  keyStatus.setAttribute('role', 'status')
+  keyActions.append(saveKey, removeKey, keyStatus)
+  form.append(keyActions)
+  panel.append(form)
+
+  saveModel.addEventListener('click', () => {
+    setGeminiBusy([saveModel, test, saveKey, removeKey], true)
+    result.textContent = 'Saving model…'
+    void window.api
+      .setGeminiModel(model.value)
+      .then((status) => {
+        currentGeminiStatus = status
+        currentPreferences.geminiModel = status.model
+        result.textContent = 'Model saved.'
+      })
+      .catch((error: unknown) => {
+        result.textContent =
+          error instanceof Error ? error.message : 'Could not save the Gemini model.'
+      })
+      .finally(() => setGeminiBusy([saveModel, test, saveKey, removeKey], false))
+  })
+
+  test.addEventListener('click', () => {
+    setGeminiBusy([saveModel, test, saveKey, removeKey], true)
+    result.textContent = 'Testing Gemini connection…'
+    void window.api
+      .setGeminiModel(model.value)
+      .then((status) => {
+        currentGeminiStatus = status
+        currentPreferences.geminiModel = status.model
+        return window.api.testGeminiConnection()
+      })
+      .then(() => {
+        result.textContent = 'Connection successful. Gemini returned a response.'
+      })
+      .catch((error: unknown) => {
+        result.textContent =
+          error instanceof Error ? error.message : 'Gemini connection test failed.'
+        void window.api
+          .getGeminiStatus()
+          .then((status) => {
+            currentGeminiStatus = status
+            if (status.credentialState === 'unreadable') renderSettingsSection('api')
+          })
+          .catch(() => undefined)
+      })
+      .finally(() => setGeminiBusy([saveModel, test, saveKey, removeKey], false))
+  })
+
+  saveKey.addEventListener('click', () => {
+    if (!keyInput.value) {
+      keyStatus.textContent = 'Enter an API key first.'
+      return
+    }
+    setGeminiBusy([saveModel, test, saveKey, removeKey], true)
+    keyStatus.textContent = 'Saving securely…'
+    void window.api
+      .saveGeminiKey(keyInput.value)
+      .then((status) => {
+        currentGeminiStatus = status
+        keyInput.value = ''
+        keyInput.placeholder = 'Saved key is not shown'
+        providerRow.querySelector('.settings-info-row p')!.textContent =
+          'API key is stored securely on this device.'
+        configurationRow.querySelector('.settings-state')!.textContent = 'Configured'
+        removeKey.disabled = false
+        saveKey.disabled = false
+        keyStatus.textContent = 'Key saved securely. The saved key cannot be viewed here.'
+      })
+      .catch((error: unknown) => {
+        keyStatus.textContent =
+          error instanceof Error ? error.message : 'Could not save the API key.'
+      })
+      .finally(() => {
+        setGeminiBusy([saveModel, test, saveKey, removeKey], false)
+      })
+  })
+
+  removeKey.addEventListener('click', () => {
+    if (!window.confirm('Remove the saved Gemini API key from this device?')) return
+    setGeminiBusy([saveModel, test, saveKey, removeKey], true)
+    keyStatus.textContent = 'Removing key…'
+    void window.api
+      .removeGeminiKey()
+      .then((status) => {
+        currentGeminiStatus = status
+        keyInput.value = ''
+        keyInput.placeholder = 'Enter your Gemini API key'
+        providerRow.querySelector('.settings-info-row p')!.textContent = 'No API key is stored.'
+        configurationRow.querySelector('.settings-state')!.textContent = 'Not configured'
+        saveKey.disabled = false
+        recoveryNote?.remove()
+        keyStatus.textContent = 'Saved key removed.'
+        setGeminiBusy([saveModel, test, saveKey, removeKey], false)
+      })
+      .catch((error: unknown) => {
+        keyStatus.textContent =
+          error instanceof Error ? error.message : 'Could not remove the API key.'
+        setGeminiBusy([saveModel, test, saveKey, removeKey], false)
+      })
+  })
+}
+
+function setGeminiBusy(buttons: HTMLButtonElement[], busy: boolean): void {
+  buttons.forEach((button) => {
+    button.disabled =
+      busy || (button.dataset.requiresGeminiKey === 'true' && !currentGeminiStatus.configured)
+  })
+}
+
+function renderGeminiChat(panel: HTMLElement): void {
+  const messages: GeminiChatMessage[] = []
+  const transcript = document.createElement('div')
+  transcript.className = 'gemini-chat-transcript'
+  transcript.setAttribute('aria-live', 'polite')
+  transcript.setAttribute('aria-label', 'Conversation with Gemini')
+  const controls = document.createElement('div')
+  controls.className = 'gemini-chat-controls'
+  const input = document.createElement('textarea')
+  input.id = 'gemini-chat-input'
+  input.rows = 3
+  input.maxLength = 8_000
+  input.placeholder = currentGeminiStatus.configured
+    ? 'Ask Gemini a question…'
+    : 'Configure a Gemini API key in API Configuration first.'
+  input.disabled = !currentGeminiStatus.configured
+  input.setAttribute('aria-label', 'Message for Gemini')
+  const actions = document.createElement('div')
+  actions.className = 'settings-actions'
+  const send = document.createElement('button')
+  send.type = 'button'
+  send.className = 'button button-primary'
+  send.textContent = 'Send'
+  send.disabled = !currentGeminiStatus.configured
+  const reset = document.createElement('button')
+  reset.type = 'button'
+  reset.className = 'button button-secondary'
+  reset.textContent = 'New chat'
+  const status = document.createElement('span')
+  status.className = 'settings-save-status'
+  status.setAttribute('role', 'status')
+  actions.append(send, reset, status)
+  controls.append(input, actions)
+  panel.append(createInfoRow('Model', currentGeminiStatus.model), transcript, controls)
+
+  const renderMessages = (): void => {
+    transcript.replaceChildren()
+    if (messages.length === 0) {
+      const empty = document.createElement('p')
+      empty.className = 'gemini-chat-empty'
+      empty.textContent = currentGeminiStatus.configured
+        ? 'Start a conversation with Gemini.'
+        : 'Save a Gemini API key in API Configuration to start chatting.'
+      transcript.append(empty)
+      return
+    }
+    messages.forEach((message) => {
+      const bubble = document.createElement('article')
+      bubble.className = `gemini-message ${message.role}`
+      const author = document.createElement('strong')
+      author.textContent = message.role === 'user' ? 'You' : 'Gemini'
+      const text = document.createElement('p')
+      text.textContent = message.text
+      bubble.append(author, text)
+      transcript.append(bubble)
+    })
+    transcript.scrollTop = transcript.scrollHeight
+  }
+
+  let sending = false
+  const submit = async (): Promise<void> => {
+    const text = input.value.trim()
+    if (sending || !text) return
+    if (!currentGeminiStatus.configured) {
+      status.textContent = 'Configure an API key first.'
+      return
+    }
+    if (messages.length >= 20) messages.splice(0, 2)
+    const requestMessages: GeminiChatMessage[] = [...messages, { role: 'user', text }]
+    if (requestMessages.length > 20) requestMessages.splice(0, requestMessages.length - 20)
+    if (requestMessages[0]?.role !== 'user') requestMessages.shift()
+    messages.push({ role: 'user', text })
+    input.value = ''
+    renderMessages()
+    sending = true
+    send.disabled = true
+    reset.disabled = true
+    input.disabled = true
+    status.textContent = 'Gemini is responding…'
+    const pending = document.createElement('p')
+    pending.className = 'gemini-chat-pending'
+    pending.textContent = 'Generating response…'
+    transcript.append(pending)
+    try {
+      const response = await window.api.sendGeminiChat({ messages: requestMessages })
+      messages.push({ role: 'assistant', text: response.text })
+      status.textContent = ''
+    } catch (error) {
+      messages.pop()
+      status.textContent =
+        error instanceof Error ? error.message : 'Gemini could not complete the request.'
+      void window.api
+        .getGeminiStatus()
+        .then((geminiStatus) => {
+          currentGeminiStatus = geminiStatus
+          if (geminiStatus.credentialState === 'unreadable') {
+            input.disabled = true
+            send.disabled = true
+            status.textContent =
+              'Saved key is unreadable. Remove it in API Configuration, then save it again.'
+          }
+        })
+        .catch(() => undefined)
+    } finally {
+      sending = false
+      send.disabled = !currentGeminiStatus.configured
+      reset.disabled = false
+      input.disabled = !currentGeminiStatus.configured
+      renderMessages()
+      if (currentGeminiStatus.configured) input.focus()
+    }
+  }
+  send.addEventListener('click', () => void submit())
+  input.addEventListener('keydown', (event: KeyboardEvent) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault()
+      void submit()
+    }
+  })
+  reset.addEventListener('click', () => {
+    if (messages.length > 0 && !window.confirm('Start a new conversation and clear this chat?'))
+      return
+    messages.splice(0, messages.length)
+    status.textContent = ''
+    renderMessages()
+    input.focus()
+  })
+  renderMessages()
+}
+
 async function loadSettingsBootstrap(): Promise<void> {
   try {
-    const [preferences, runtime] = await Promise.all([
+    const [preferences, runtime, geminiStatus] = await Promise.all([
       window.api.getPreferences(),
-      window.api.getRuntimeInfo()
+      window.api.getRuntimeInfo(),
+      window.api.getGeminiStatus()
     ])
     currentPreferences = preferences
     currentRuntimeInfo = runtime
+    currentGeminiStatus = geminiStatus
     document.body.classList.toggle('reduce-motion', preferences.reduceMotion)
     if (preferences.startupPage === 'Settings') openSettings('account')
     renderSettingsSection(activeSettingsSection)
