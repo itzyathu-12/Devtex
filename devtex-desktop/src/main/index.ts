@@ -3,6 +3,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { GitHubRepositoryService } from './github-repositories'
+import { getPreferences, getRuntimeInfo, savePreferences } from './settings'
 import type { GitHubConnectionStatus } from '../shared/github'
 
 declare const __GITHUB_OAUTH_CLIENT_ID__: string
@@ -55,8 +56,8 @@ function handleAuthCallback(value: string): void {
     mainWindow.show()
     mainWindow.focus()
     deliverAuthCallback()
-  } catch (error) {
-    console.error('Invalid authentication callback:', error)
+  } catch {
+    return
   }
 }
 
@@ -96,6 +97,11 @@ ipcMain.handle('github:repositories', async (event) => {
   return githubRepositories.getRepositories()
 })
 
+ipcMain.handle('github:profile', async (event) => {
+  assertTrustedSender(event)
+  return githubRepositories.getGitHubProfile()
+})
+
 ipcMain.handle('github:disconnect', async (event) => {
   assertTrustedSender(event)
   return githubRepositories.disconnect()
@@ -104,6 +110,21 @@ ipcMain.handle('github:disconnect', async (event) => {
 ipcMain.handle('github:open-repository', async (event, value: unknown) => {
   assertTrustedSender(event)
   await githubRepositories.openRepository(value)
+})
+
+ipcMain.handle('settings:runtime', (event) => {
+  assertTrustedSender(event)
+  return getRuntimeInfo()
+})
+
+ipcMain.handle('settings:get-preferences', async (event) => {
+  assertTrustedSender(event)
+  return getPreferences()
+})
+
+ipcMain.handle('settings:save-preferences', async (event, value: unknown) => {
+  assertTrustedSender(event)
+  return savePreferences(value)
 })
 
 ipcMain.on('auth:renderer-ready', (event) => {
@@ -121,6 +142,8 @@ function createWindow(): void {
     ...(['win32', 'linux'].includes(process.platform) ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
       sandbox: false
     }
   })

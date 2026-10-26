@@ -19,3 +19,13 @@ export interface GitHubConnectionStatus {
 export interface GitHubRepositoryResult extends GitHubConnectionStatus {
   repositories: GitHubRepository[]
 }
+
+export interface GitHubProfile {
+  username: string
+  displayName: string | null
+  avatarUrl: string
+  profileUrl: string
+  bio: string | null
+  publicRepos: number
+  followers: number
+}

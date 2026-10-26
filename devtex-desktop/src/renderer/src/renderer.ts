@@ -1,8 +1,55 @@
 import { createClient } from '@supabase/supabase-js'
 import type { GitHubConnectionStatus, GitHubRepository } from '../../shared/github'
+import type {
+  AppPreferences,
+  AppRuntimeInfo,
+  SettingsSection,
+  StartupPage
+} from '../../shared/settings'
+
+const settingsTitles: Record<SettingsSection, string> = {
+  account: 'Account',
+  api: 'API Configuration',
+  runtime: 'Environment & Runtime',
+  integrations: 'Integrations',
+  preferences: 'Preferences',
+  diagnostics: 'Security & Diagnostics',
+  about: 'About DEVTEX'
+}
+const settingsDescriptions: Record<SettingsSection, string> = {
+  account: 'Manage your DEVTEX sign-in session.',
+  api: 'AI provider configuration available in this desktop build.',
+  runtime: 'Review non-sensitive application and configuration status.',
+  integrations: 'Check the independent status of connected services.',
+  preferences: 'Choose application behavior that persists on this device.',
+  diagnostics: 'Review safe runtime and integration diagnostics.',
+  about: 'Application version and runtime details.'
+}
+type WorkspacePage = StartupPage | 'Projects' | 'Testing Engine' | 'Reports'
+let currentAccountEmail: string | null = null
+let currentGitHubStatus: GitHubConnectionStatus = { connected: false, connecting: false }
+let currentRuntimeInfo: AppRuntimeInfo | null = null
+let currentPreferences: AppPreferences = { reduceMotion: false, startupPage: 'Dashboard' }
+let activeSettingsSection: SettingsSection = 'account'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+
+function isValidSupabaseUrl(value: string): boolean {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' || (url.protocol === 'http:' && url.hostname === 'localhost')
+  } catch {
+    return false
+  }
+}
+
+function isValidSupabasePublishableKey(value: string): boolean {
+  return (
+    value.startsWith('sb_publishable_') ||
+    (value.startsWith('eyJ') && value.split('.').length === 3)
+  )
+}
 
 if (!supabaseUrl || !supabaseKey) {
   console.error(
@@ -11,7 +58,10 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 const supabase =
-  supabaseUrl && supabaseKey
+  supabaseUrl &&
+  supabaseKey &&
+  isValidSupabaseUrl(supabaseUrl) &&
+  isValidSupabasePublishableKey(supabaseKey)
     ? createClient(supabaseUrl, supabaseKey, {
         auth: {
           flowType: 'pkce'
@@ -27,6 +77,9 @@ function init(): void {
     setupDemoScan()
     setupGitHubRepositories()
     setupAuthentication()
+    setupProfileMenu()
+    setupSettings()
+    void loadSettingsBootstrap()
   })
 }
 
@@ -72,10 +125,6 @@ function addActivity(title: string, description: string): void {
 
 function setupNavigation(): void {
   const buttons = document.querySelectorAll<HTMLButtonElement>('.nav-item')
-  const breadcrumb = document.getElementById('breadcrumb-page')
-  const title = document.getElementById('page-title')
-  const subtitle = document.getElementById('page-subtitle')
-
   const descriptions: Record<string, string> = {
     Dashboard: 'Build, test, and improve your software from one workspace.',
     Projects: 'Manage the projects you add to your workspace.',
@@ -86,28 +135,37 @@ function setupNavigation(): void {
 
   buttons.forEach((button) => {
     button.addEventListener('click', () => {
-      buttons.forEach((item) => item.classList.remove('active'))
-      button.classList.add('active')
-
-      const page = button.dataset.page || 'Dashboard'
-
-      if (breadcrumb) breadcrumb.textContent = page
-
-      if (title) {
-        if (page === 'Dashboard') {
-          title.innerHTML = 'Welcome to <span>DEVTEX.</span>'
-        } else {
-          title.textContent = page
-        }
+      const page = button.dataset.page as WorkspacePage | undefined
+      if (!page) return
+      if (page === 'Settings') {
+        openSettings(activeSettingsSection)
+        return
       }
-
-      if (subtitle) subtitle.textContent = descriptions[page] || ''
-
+      showPage(page, descriptions[page] || '')
       if (page !== 'Dashboard') {
         addActivity(`Opened ${page}`, 'Workspace navigation updated.')
       }
     })
   })
+}
+
+function showPage(page: WorkspacePage, description = ''): void {
+  const buttons = document.querySelectorAll<HTMLButtonElement>('.nav-item')
+  const breadcrumb = document.getElementById('breadcrumb-page')
+  const title = document.getElementById('page-title')
+  const subtitle = document.getElementById('page-subtitle')
+  const dashboard = document.getElementById('dashboard-view')
+  const settings = document.getElementById('settings-view')
+
+  buttons.forEach((button) => button.classList.toggle('active', button.dataset.page === page))
+  if (breadcrumb) breadcrumb.textContent = page
+  if (title) {
+    title.textContent = page === 'Dashboard' ? '' : page
+    if (page === 'Dashboard') title.innerHTML = 'Welcome to <span>DEVTEX.</span>'
+  }
+  if (subtitle) subtitle.textContent = description
+  if (dashboard) dashboard.hidden = page === 'Settings'
+  if (settings) settings.hidden = page !== 'Settings'
 }
 
 function setupProjects(): void {
@@ -236,6 +294,10 @@ function setupGitHubRepositories(): void {
   }
 
   function renderRepositories(): void {
+    currentGitHubStatus = connection
+    if (activeSettingsSection === 'integrations' || activeSettingsSection === 'diagnostics') {
+      renderSettingsSection(activeSettingsSection)
+    }
     if (statusLabel) {
       statusLabel.textContent = connection.connecting
         ? 'Waiting for GitHub authorization'
@@ -382,6 +444,9 @@ function setupGitHubRepositories(): void {
   refreshButton?.addEventListener('click', () => void loadRepositories())
   searchInput?.addEventListener('input', renderRepositories)
   disconnectButton?.addEventListener('click', () => {
+    if (!window.confirm('Disconnect GitHub and remove its saved credential from this device?')) {
+      return
+    }
     void window.api
       .disconnectGitHubRepositories()
       .then((status) => {
@@ -459,12 +524,8 @@ function setupAuthentication(): void {
         'Finish authentication in your browser.'
       )
     } catch (error) {
-      console.error('Supabase OAuth error:', error)
-      window.alert(
-        error instanceof Error
-          ? `Sign-in could not start: ${error.message}`
-          : 'Sign-in could not start. Check the console for details.'
-      )
+      void error
+      window.alert('Sign-in could not start. Check your Supabase configuration and try again.')
     }
   }
 
@@ -486,8 +547,7 @@ function setupAuthentication(): void {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (error) {
-      console.error('Supabase callback error:', error)
-      showAuthMessage(`Sign-in could not be completed: ${error.message}`)
+      showAuthMessage('Sign-in could not be completed. Restart the sign-in flow and try again.')
       return
     }
 
@@ -496,11 +556,20 @@ function setupAuthentication(): void {
   }
 
   function updateAccount(email?: string): void {
+    currentAccountEmail = email || null
     const signedIn = Boolean(email)
     if (signInButton) signInButton.textContent = signedIn ? 'Sign out' : 'Sign in'
     if (avatar) {
       avatar.textContent = email?.charAt(0).toUpperCase() || 'D'
       avatar.title = email || 'DEVTEX account'
+    }
+    updateProfileMenuIdentity()
+    if (
+      activeSettingsSection === 'account' ||
+      activeSettingsSection === 'integrations' ||
+      activeSettingsSection === 'diagnostics'
+    ) {
+      renderSettingsSection(activeSettingsSection)
     }
   }
 
@@ -513,8 +582,9 @@ function setupAuthentication(): void {
       return
     }
     void supabase.auth.getSession().then(({ data }) => {
-      if (data.session) void supabase.auth.signOut()
-      else openModal()
+      if (data.session) {
+        if (window.confirm('Sign out of your DEVTEX account?')) void supabase.auth.signOut()
+      } else openModal()
     })
   })
 
@@ -540,14 +610,14 @@ function setupAuthentication(): void {
 
   window.api.onAuthCallback((callbackUrl) => {
     void completeAuth(callbackUrl).catch((error: unknown) => {
-      console.error('Unable to complete Supabase sign-in:', error)
-      showAuthMessage('Sign-in could not be completed. Check the application logs.')
+      void error
+      showAuthMessage('Sign-in could not be completed. Restart the sign-in flow and try again.')
     })
   })
 
   if (supabase) {
     void supabase.auth.getSession().then(({ data, error }) => {
-      if (error) console.error('Unable to restore Supabase session:', error)
+      void error
       updateAccount(data.session?.user.email)
     })
     supabase.auth.onAuthStateChange((_event, session) => {
@@ -559,3 +629,391 @@ function setupAuthentication(): void {
 }
 
 init()
+
+function updateProfileMenuIdentity(): void {
+  const identity = document.getElementById('profile-menu-identity')
+  const status = document.getElementById('profile-menu-status')
+  if (identity) identity.textContent = currentAccountEmail || 'Signed out'
+  if (status) status.textContent = currentAccountEmail ? 'Supabase account' : 'No Supabase session'
+}
+
+function setupProfileMenu(): void {
+  const trigger = document.getElementById('user-avatar') as HTMLButtonElement | null
+  const menu = document.getElementById('profile-menu')
+  const control = document.querySelector('.profile-control')
+  if (!trigger || !menu || !control) return
+  updateProfileMenuIdentity()
+
+  const items = (): HTMLButtonElement[] =>
+    Array.from(menu.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))
+  const closeMenu = (restoreFocus = false): void => {
+    menu.hidden = true
+    trigger.setAttribute('aria-expanded', 'false')
+    if (restoreFocus) trigger.focus()
+  }
+  const openMenu = (): void => {
+    menu.hidden = false
+    trigger.setAttribute('aria-expanded', 'true')
+    items()[0]?.focus()
+  }
+
+  trigger.addEventListener('click', () => {
+    if (menu.hidden) openMenu()
+    else closeMenu()
+  })
+  menu.addEventListener('click', (event: MouseEvent) => {
+    const target = event.target
+    if (!(target instanceof HTMLButtonElement)) return
+    const section = target.dataset.settingSection as SettingsSection | undefined
+    if (section) openSettings(section)
+    closeMenu()
+  })
+  document.addEventListener('pointerdown', (event: PointerEvent) => {
+    if (!menu.hidden && event.target instanceof Node && !control.contains(event.target)) {
+      closeMenu()
+    }
+  })
+  document.addEventListener('keydown', (event: KeyboardEvent) => {
+    if (menu.hidden) return
+    const menuItems = items()
+    const index = menuItems.indexOf(document.activeElement as HTMLButtonElement)
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      closeMenu(true)
+    } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      const offset = event.key === 'ArrowDown' ? 1 : -1
+      menuItems[(index + offset + menuItems.length) % menuItems.length]?.focus()
+    } else if (event.key === 'Home') {
+      event.preventDefault()
+      menuItems[0]?.focus()
+    } else if (event.key === 'End') {
+      event.preventDefault()
+      menuItems.at(-1)?.focus()
+    } else if (event.key === 'Tab') {
+      closeMenu()
+    }
+  })
+}
+
+function setupSettings(): void {
+  document.querySelectorAll<HTMLButtonElement>('[data-setting-section]').forEach((button) => {
+    if (button.closest('#profile-menu')) return
+    button.addEventListener('click', () => {
+      const section = button.dataset.settingSection as SettingsSection | undefined
+      if (section) openSettings(section)
+    })
+  })
+}
+
+function openSettings(section: SettingsSection): void {
+  activeSettingsSection = section
+  showPage('Settings', 'Account, integrations, and application preferences.')
+  const description = document.getElementById('settings-description')
+  if (description) description.textContent = settingsDescriptions[section]
+  document
+    .querySelectorAll<HTMLButtonElement>('.settings-navigation [data-setting-section]')
+    .forEach((button) => {
+      const selected = button.dataset.settingSection === section
+      button.classList.toggle('active', selected)
+      button.setAttribute('aria-current', selected ? 'page' : 'false')
+    })
+  renderSettingsSection(section)
+  document.querySelector<HTMLElement>('#settings-panel h2')?.focus()
+}
+
+function createInfoRow(label: string, value: string, detail?: string): HTMLElement {
+  const row = document.createElement('div')
+  row.className = 'settings-info-row'
+  const copy = document.createElement('div')
+  const heading = document.createElement('strong')
+  heading.textContent = label
+  copy.append(heading)
+  if (detail) {
+    const help = document.createElement('p')
+    help.textContent = detail
+    copy.append(help)
+  }
+  const state = document.createElement('span')
+  state.className = 'settings-state'
+  state.textContent = value
+  row.append(copy, state)
+  return row
+}
+
+function appendSettingsHeader(panel: HTMLElement, section: SettingsSection): void {
+  const heading = document.createElement('h2')
+  heading.textContent = settingsTitles[section]
+  heading.tabIndex = -1
+  const description = document.createElement('p')
+  description.className = 'settings-help'
+  description.textContent = settingsDescriptions[section]
+  panel.append(heading, description)
+}
+
+function renderSettingsSection(section: SettingsSection): void {
+  const panel = document.getElementById('settings-panel')
+  if (!panel) return
+  panel.replaceChildren()
+  appendSettingsHeader(panel, section)
+
+  if (section === 'account') {
+    panel.append(
+      createInfoRow('Supabase authentication', currentAccountEmail ? 'Signed in' : 'Not signed in'),
+      createInfoRow('Account identity', currentAccountEmail || 'No account identity available')
+    )
+    const action = document.createElement('button')
+    action.type = 'button'
+    action.className = 'button button-secondary settings-action'
+    action.textContent = currentAccountEmail ? 'Sign out' : 'Sign in'
+    action.addEventListener('click', () => {
+      const authButton = document.getElementById('sign-in') as HTMLButtonElement | null
+      authButton?.click()
+    })
+    panel.append(action)
+    return
+  }
+
+  if (section === 'api') {
+    panel.append(
+      createInfoRow(
+        'AI provider',
+        'Not available',
+        'No AI provider client is implemented in this desktop application.'
+      ),
+      createInfoRow(
+        'API credentials',
+        'Not configured',
+        'No API key is collected or stored by this build.'
+      )
+    )
+    const note = document.createElement('p')
+    note.className = 'settings-notice'
+    note.textContent =
+      'AI-assisted workflows are planned for the separate DEVTEX CLI. This desktop build has no provider or model to configure or test.'
+    panel.append(note)
+    return
+  }
+
+  if (section === 'runtime' || section === 'about' || section === 'diagnostics') {
+    if (!currentRuntimeInfo) {
+      const loading = document.createElement('p')
+      loading.className = 'settings-help'
+      loading.textContent = 'Loading sanitized runtime information…'
+      panel.append(loading)
+      return
+    }
+    const info = currentRuntimeInfo
+    if (section === 'about') {
+      panel.append(
+        createInfoRow('Application', 'DEVTEX Desktop'),
+        createInfoRow('Version', info.appVersion)
+      )
+    }
+    panel.append(
+      createInfoRow('Environment', info.environment),
+      createInfoRow('Electron', info.electronVersion),
+      createInfoRow('Chromium', info.chromiumVersion),
+      createInfoRow('Node.js', info.nodeVersion)
+    )
+    if (section !== 'about') {
+      panel.append(
+        createInfoRow('Supabase project URL', configurationLabel(info.supabaseUrlStatus)),
+        createInfoRow(
+          'Supabase publishable key',
+          configurationLabel(info.supabasePublishableKeyStatus)
+        ),
+        createInfoRow('GitHub OAuth Client ID', configurationLabel(info.githubOAuthClientStatus)),
+        createInfoRow('AI provider', 'Not implemented in this desktop build')
+      )
+    }
+    if (section === 'diagnostics') {
+      panel.append(
+        createInfoRow('GitHub repository authorization', connectionLabel(currentGitHubStatus)),
+        createInfoRow('Supabase session', currentAccountEmail ? 'Signed in' : 'Not signed in')
+      )
+      const note = document.createElement('p')
+      note.className = 'settings-notice'
+      note.textContent =
+        'This build does not retain a safe application error history. No security audit is implied by these status checks.'
+      panel.append(note)
+    }
+    if (section === 'runtime') {
+      const restart = document.createElement('p')
+      restart.className = 'settings-notice'
+      restart.textContent =
+        'Environment configuration is read when the app starts. Changes to .env require a restart; this page never edits that file.'
+      panel.append(restart)
+    }
+    return
+  }
+
+  if (section === 'integrations') {
+    const githubStatus = currentGitHubStatus.connecting
+      ? 'Testing'
+      : currentGitHubStatus.connected
+        ? `Connected${currentGitHubStatus.username ? ` as @${currentGitHubStatus.username}` : ''}`
+        : 'Not connected'
+    panel.append(
+      createInfoRow(
+        'GitHub repositories',
+        githubStatus,
+        'Separate GitHub Device Flow authorization; not the same as Supabase sign-in.'
+      ),
+      createInfoRow(
+        'Supabase authentication',
+        currentAccountEmail ? 'Connected' : 'Not connected',
+        'Reflects the current authentication session only; no database health check was performed.'
+      ),
+      createInfoRow(
+        'AI provider',
+        'Not configured',
+        'No desktop AI provider integration is implemented.'
+      )
+    )
+    const actions = document.createElement('div')
+    actions.className = 'settings-actions'
+    const githubAction = document.createElement('button')
+    githubAction.type = 'button'
+    githubAction.className = 'button button-secondary'
+    githubAction.textContent = currentGitHubStatus.connected
+      ? 'Refresh repositories'
+      : 'Connect GitHub'
+    githubAction.addEventListener('click', () => {
+      document
+        .getElementById(currentGitHubStatus.connected ? 'github-refresh' : 'connect-github')
+        ?.click()
+    })
+    actions.append(githubAction)
+    if (currentGitHubStatus.connected || currentGitHubStatus.connecting) {
+      const disconnect = document.createElement('button')
+      disconnect.type = 'button'
+      disconnect.className = 'button button-secondary'
+      disconnect.textContent = 'Disconnect GitHub'
+      disconnect.addEventListener('click', () => {
+        document.getElementById('github-disconnect')?.click()
+      })
+      actions.append(disconnect)
+    }
+    panel.append(actions)
+    return
+  }
+
+  if (section === 'preferences') renderPreferences(panel)
+}
+
+function connectionLabel(status: GitHubConnectionStatus): string {
+  if (status.connecting) return 'Authorization in progress'
+  if (status.connected) return `Connected${status.username ? ` as @${status.username}` : ''}`
+  return 'Not connected'
+}
+
+function configurationLabel(status: AppRuntimeInfo['supabaseUrlStatus']): string {
+  switch (status) {
+    case 'configured':
+      return 'Configured'
+    case 'missing':
+      return 'Missing'
+    case 'empty':
+      return 'Empty'
+    case 'invalid':
+      return 'Invalid'
+  }
+}
+
+function renderPreferences(panel: HTMLElement): void {
+  const group = document.createElement('div')
+  group.className = 'settings-preferences'
+  const pageLabel = document.createElement('label')
+  pageLabel.htmlFor = 'startup-page'
+  pageLabel.textContent = 'Startup page'
+  const pageSelect = document.createElement('select')
+  pageSelect.id = 'startup-page'
+  const pages: StartupPage[] = ['Dashboard', 'Settings']
+  pages.forEach((page) => {
+    const option = document.createElement('option')
+    option.value = page
+    option.textContent = page
+    option.selected = currentPreferences.startupPage === page
+    pageSelect.append(option)
+  })
+  group.append(pageLabel, pageSelect)
+
+  const motionLabel = document.createElement('label')
+  motionLabel.className = 'settings-checkbox-row'
+  const motion = document.createElement('input')
+  motion.type = 'checkbox'
+  motion.id = 'reduce-motion'
+  motion.checked = currentPreferences.reduceMotion
+  const motionText = document.createElement('span')
+  motionText.textContent = 'Reduce application motion'
+  motionLabel.append(motion, motionText)
+  group.append(motionLabel)
+
+  const help = document.createElement('p')
+  help.className = 'settings-help'
+  help.textContent =
+    'These preferences are stored locally in the application data directory and are separate from sign-in credentials.'
+  group.append(help)
+  const actions = document.createElement('div')
+  actions.className = 'settings-actions'
+  const save = document.createElement('button')
+  save.type = 'button'
+  save.className = 'button button-primary'
+  save.textContent = 'Save preferences'
+  const cancel = document.createElement('button')
+  cancel.type = 'button'
+  cancel.className = 'button button-secondary'
+  cancel.textContent = 'Cancel'
+  const status = document.createElement('span')
+  status.className = 'settings-save-status'
+  status.setAttribute('role', 'status')
+  save.addEventListener('click', () => {
+    const next: AppPreferences = {
+      reduceMotion: motion.checked,
+      startupPage: pageSelect.value as StartupPage
+    }
+    save.disabled = true
+    status.textContent = 'Saving…'
+    void window.api
+      .savePreferences(next)
+      .then((saved) => {
+        currentPreferences = saved
+        document.body.classList.toggle('reduce-motion', saved.reduceMotion)
+        status.textContent = 'Saved'
+      })
+      .catch(() => {
+        status.textContent = 'Could not save preferences.'
+      })
+      .finally(() => {
+        save.disabled = false
+      })
+  })
+  cancel.addEventListener('click', () => renderSettingsSection('preferences'))
+  actions.append(save, cancel, status)
+  group.append(actions)
+  panel.append(group)
+}
+
+async function loadSettingsBootstrap(): Promise<void> {
+  try {
+    const [preferences, runtime] = await Promise.all([
+      window.api.getPreferences(),
+      window.api.getRuntimeInfo()
+    ])
+    currentPreferences = preferences
+    currentRuntimeInfo = runtime
+    document.body.classList.toggle('reduce-motion', preferences.reduceMotion)
+    if (preferences.startupPage === 'Settings') openSettings('account')
+    renderSettingsSection(activeSettingsSection)
+  } catch {
+    currentRuntimeInfo = null
+    const panel = document.getElementById('settings-panel')
+    if (panel && activeSettingsSection === 'runtime') {
+      const message = document.createElement('p')
+      message.className = 'settings-error'
+      message.textContent = 'Runtime information is temporarily unavailable.'
+      panel.append(message)
+    }
+  }
+}

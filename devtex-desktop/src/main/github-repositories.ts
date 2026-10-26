@@ -3,6 +3,7 @@ import { readFile, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type {
   GitHubConnectionStatus,
+  GitHubProfile,
   GitHubRepository,
   GitHubRepositoryResult
 } from '../shared/github'
@@ -169,6 +170,45 @@ export class GitHubRepositoryService {
         connecting: false,
         username: currentCredential.username,
         repositories
+      }
+    } catch (error) {
+      if (error instanceof GitHubAuthorizationError) {
+        await this.clearCredential()
+        this.emit({ connected: false, connecting: false, message: error.message })
+      }
+      throw error
+    }
+  }
+
+  async getGitHubProfile(): Promise<GitHubProfile | null> {
+    const credential = await this.loadCredential()
+    if (!credential) return null
+
+    const currentCredential = await this.getUsableCredential(credential)
+    try {
+      const body = await this.githubRequest(githubUserUrl, currentCredential.accessToken)
+      if (
+        !isRecord(body) ||
+        typeof body.login !== 'string' ||
+        !/^[A-Za-z0-9-]{1,39}$/.test(body.login)
+      ) {
+        throw new Error('GitHub did not return a valid account profile.')
+      }
+
+      return {
+        username: body.login,
+        displayName: typeof body.name === 'string' && body.name.trim() ? body.name.trim() : null,
+        avatarUrl:
+          typeof body.avatar_url === 'string' && body.avatar_url
+            ? body.avatar_url
+            : `https://github.com/${body.login}.png`,
+        profileUrl:
+          typeof body.html_url === 'string' && body.html_url
+            ? body.html_url
+            : `https://github.com/${body.login}`,
+        bio: typeof body.bio === 'string' ? body.bio : null,
+        publicRepos: typeof body.public_repos === 'number' ? body.public_repos : 0,
+        followers: typeof body.followers === 'number' ? body.followers : 0
       }
     } catch (error) {
       if (error instanceof GitHubAuthorizationError) {

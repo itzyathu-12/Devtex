@@ -1,6 +1,11 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import type { GitHubConnectionStatus, GitHubRepositoryResult } from '../shared/github'
+import type {
+  GitHubConnectionStatus,
+  GitHubProfile,
+  GitHubRepositoryResult
+} from '../shared/github'
+import type { AppPreferences, AppRuntimeInfo } from '../shared/settings'
 
 // Custom APIs for renderer
 const api = {
@@ -15,6 +20,11 @@ const api = {
     ipcRenderer.invoke('github:connect'),
   getGitHubRepositories: (): Promise<GitHubRepositoryResult> =>
     ipcRenderer.invoke('github:repositories'),
+  getGitHubProfile: (): Promise<GitHubProfile | null> => ipcRenderer.invoke('github:profile'),
+  getRuntimeInfo: (): Promise<AppRuntimeInfo> => ipcRenderer.invoke('settings:runtime'),
+  getPreferences: (): Promise<AppPreferences> => ipcRenderer.invoke('settings:get-preferences'),
+  savePreferences: (preferences: AppPreferences): Promise<AppPreferences> =>
+    ipcRenderer.invoke('settings:save-preferences', preferences),
   disconnectGitHubRepositories: (): Promise<GitHubConnectionStatus> =>
     ipcRenderer.invoke('github:disconnect'),
   openGitHubRepository: (url: string): Promise<void> =>
