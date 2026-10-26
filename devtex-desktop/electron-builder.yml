@@ -17,6 +17,7 @@ asarUnpack:
   - resources/**
 win:
   executableName: devtex-desktop
+  icon: build/icon.ico
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
