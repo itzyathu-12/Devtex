@@ -8,6 +8,7 @@ import type {
   SettingsSection,
   StartupPage
 } from '../../shared/settings'
+import { withLoadingState } from '../../shared/async-state'
 
 const settingsTitles: Record<SettingsSection, string> = {
   account: 'Account',
@@ -36,12 +37,12 @@ let currentRuntimeInfo: AppRuntimeInfo | null = null
 let currentPreferences: AppPreferences = {
   reduceMotion: false,
   startupPage: 'Dashboard',
-  geminiModel: 'gemini-2.5-flash'
+  geminiModel: 'gemini-2.5-flash-lite'
 }
 let activeSettingsSection: SettingsSection = 'account'
 let currentGeminiStatus: GeminiStatus = {
   configured: false,
-  model: 'gemini-2.5-flash',
+  model: 'gemini-2.5-flash-lite',
   credentialState: 'missing',
   storageContext: {
     userDataDirectory: 'Unavailable',
@@ -1146,6 +1147,7 @@ function renderGeminiConfiguration(panel: HTMLElement): void {
 
   test.addEventListener('click', () => {
     setGeminiBusy([saveModel, test, saveKey, removeKey], true)
+    test.textContent = 'Testing…'
     result.textContent = 'Testing Gemini connection…'
     void window.api
       .setGeminiModel(model.value)
@@ -1154,10 +1156,17 @@ function renderGeminiConfiguration(panel: HTMLElement): void {
         currentPreferences.geminiModel = status.model
         return window.api.testGeminiConnection()
       })
-      .then(() => {
-        result.textContent = 'Connection successful. Gemini returned a response.'
+      .then((testResult) => {
+        if (testResult.success) {
+          test.textContent = 'Test Connection'
+          result.textContent = `Connection successful. Gemini responded after ${testResult.attempts} ${testResult.attempts === 1 ? 'attempt' : 'attempts'}.`
+          return
+        }
+        test.textContent = testResult.retryable ? 'Retry Connection' : 'Test Connection'
+        result.textContent = formatGeminiFailureMessage(testResult)
       })
       .catch((error: unknown) => {
+        test.textContent = 'Test Connection'
         result.textContent =
           error instanceof Error ? error.message : 'Gemini connection test failed.'
         void window.api
@@ -1223,6 +1232,20 @@ function renderGeminiConfiguration(panel: HTMLElement): void {
         setGeminiBusy([saveModel, test, saveKey, removeKey], false)
       })
   })
+}
+
+function formatGeminiFailureMessage(failure: {
+  message: string
+  httpStatus?: number
+  attempts: number
+}): string {
+  const attemptLabel = `${failure.attempts} ${failure.attempts === 1 ? 'attempt' : 'attempts'}`
+  if (failure.message.includes(`after ${attemptLabel}`)) {
+    return failure.message
+  }
+  return failure.httpStatus
+    ? `${failure.message} (HTTP ${failure.httpStatus}; ${attemptLabel})`
+    : `${failure.message} (${attemptLabel})`
 }
 
 function setGeminiBusy(buttons: HTMLButtonElement[], busy: boolean): void {
@@ -1306,43 +1329,54 @@ function renderGeminiChat(panel: HTMLElement): void {
     messages.push({ role: 'user', text })
     input.value = ''
     renderMessages()
-    sending = true
-    send.disabled = true
-    reset.disabled = true
-    input.disabled = true
-    status.textContent = 'Gemini is responding…'
-    const pending = document.createElement('p')
-    pending.className = 'gemini-chat-pending'
-    pending.textContent = 'Generating response…'
-    transcript.append(pending)
-    try {
-      const response = await window.api.sendGeminiChat({ messages: requestMessages })
-      messages.push({ role: 'assistant', text: response.text })
-      status.textContent = ''
-    } catch (error) {
-      messages.pop()
-      status.textContent =
-        error instanceof Error ? error.message : 'Gemini could not complete the request.'
-      void window.api
-        .getGeminiStatus()
-        .then((geminiStatus) => {
-          currentGeminiStatus = geminiStatus
-          if (geminiStatus.credentialState === 'unreadable') {
-            input.disabled = true
-            send.disabled = true
-            status.textContent =
-              'Saved key is unreadable. Remove it in API Configuration, then save it again.'
+    send.textContent = 'Send'
+    await withLoadingState(
+      async () => {
+        status.textContent = 'Gemini is responding…'
+        const pending = document.createElement('p')
+        pending.className = 'gemini-chat-pending'
+        pending.textContent = 'Generating response…'
+        transcript.append(pending)
+        try {
+          const response = await window.api.sendGeminiChat({ messages: requestMessages })
+          if (response.success) {
+            messages.push({ role: 'assistant', text: response.text })
+            status.textContent = ''
+          } else {
+            messages.pop()
+            input.value = text
+            status.textContent = formatGeminiFailureMessage(response)
+            send.textContent = response.retryable ? 'Retry' : 'Send'
           }
-        })
-        .catch(() => undefined)
-    } finally {
-      sending = false
-      send.disabled = !currentGeminiStatus.configured
-      reset.disabled = false
-      input.disabled = !currentGeminiStatus.configured
-      renderMessages()
-      if (currentGeminiStatus.configured) input.focus()
-    }
+        } catch (error) {
+          messages.pop()
+          input.value = text
+          status.textContent =
+            error instanceof Error ? error.message : 'Gemini could not complete the request.'
+          void window.api
+            .getGeminiStatus()
+            .then((geminiStatus) => {
+              currentGeminiStatus = geminiStatus
+              if (geminiStatus.credentialState === 'unreadable') {
+                input.disabled = true
+                send.disabled = true
+                status.textContent =
+                  'Saved key is unreadable. Remove it in API Configuration, then save it again.'
+              }
+            })
+            .catch(() => undefined)
+        } finally {
+          renderMessages()
+        }
+      },
+      (loading) => {
+        sending = loading
+        send.disabled = loading || !currentGeminiStatus.configured
+        reset.disabled = loading
+        input.disabled = loading || !currentGeminiStatus.configured
+      }
+    )
+    if (currentGeminiStatus.configured) input.focus()
   }
   send.addEventListener('click', () => void submit())
   input.addEventListener('keydown', (event: KeyboardEvent) => {

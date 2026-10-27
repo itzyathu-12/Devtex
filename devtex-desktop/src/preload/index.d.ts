@@ -5,7 +5,12 @@ import type {
   GitHubRepositoryResult
 } from '../shared/github'
 import type { AppPreferences, AppRuntimeInfo } from '../shared/settings'
-import type { GeminiChatRequest, GeminiChatResponse, GeminiStatus } from '../shared/settings'
+import type {
+  GeminiChatRequest,
+  GeminiChatResponse,
+  GeminiStatus,
+  GeminiTestResult
+} from '../shared/settings'
 
 declare global {
   interface DevtexAuthAPI {
@@ -21,7 +26,7 @@ declare global {
     saveGeminiKey(key: string): Promise<GeminiStatus>
     removeGeminiKey(): Promise<GeminiStatus>
     setGeminiModel(model: string): Promise<GeminiStatus>
-    testGeminiConnection(): Promise<void>
+    testGeminiConnection(): Promise<GeminiTestResult>
     sendGeminiChat(request: GeminiChatRequest): Promise<GeminiChatResponse>
     disconnectGitHubRepositories(): Promise<GitHubConnectionStatus>
     openGitHubRepository(url: string): Promise<void>

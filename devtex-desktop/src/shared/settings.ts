@@ -29,6 +29,29 @@ export interface GeminiStatus {
   storageContext: GeminiStorageContext
 }
 
+export type GeminiTestFailureCategory =
+  | 'timeout'
+  | 'network'
+  | 'invalid-key'
+  | 'permission'
+  | 'model-unavailable'
+  | 'quota'
+  | 'server'
+  | 'request'
+  | 'unknown'
+  | 'credential'
+
+export type GeminiTestResult =
+  | { success: true; attempts: number }
+  | {
+      success: false
+      category: GeminiTestFailureCategory
+      message: string
+      retryable: boolean
+      attempts: number
+      httpStatus?: number
+    }
+
 export type GeminiCredentialState = 'missing' | 'stored' | 'unreadable'
 
 export interface GeminiStorageContext {
@@ -47,9 +70,16 @@ export interface GeminiChatRequest {
   messages: GeminiChatMessage[]
 }
 
-export interface GeminiChatResponse {
-  text: string
-}
+export type GeminiChatResponse =
+  | { success: true; text: string }
+  | {
+      success: false
+      category: GeminiTestFailureCategory
+      message: string
+      retryable: boolean
+      attempts: number
+      httpStatus?: number
+    }
 
 export interface AppRuntimeInfo {
   appVersion: string

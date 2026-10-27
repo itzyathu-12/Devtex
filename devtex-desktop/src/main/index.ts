@@ -151,7 +151,7 @@ ipcMain.handle('gemini:set-model', async (event, value: unknown) => {
 
 ipcMain.handle('gemini:test', async (event) => {
   assertTrustedSender(event)
-  await gemini.testConnection()
+  return gemini.testConnection()
 })
 
 ipcMain.handle('gemini:chat', async (event, value: unknown) => {
