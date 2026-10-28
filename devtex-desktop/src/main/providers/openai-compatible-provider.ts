@@ -179,7 +179,12 @@ export class OpenAICompatibleProvider implements AIProvider {
           Authorization: `Bearer ${key}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ model, messages: requestMessages, temperature: 0.2 }),
+        body: JSON.stringify({
+          model,
+          messages: requestMessages,
+          temperature: 0.2,
+          max_completion_tokens: 2048,
+        }),
         signal: controller.signal
       })
       if (!response.ok) {
