@@ -11,7 +11,8 @@ import type {
   GeminiChatResponse,
   AIProviderId,
   GeminiStatus,
-  GeminiTestResult
+  GeminiTestResult,
+  WorkspaceProject
 } from '../shared/settings'
 
 // Custom APIs for renderer
@@ -45,6 +46,11 @@ const api = {
     ipcRenderer.invoke('github:disconnect'),
   openGitHubRepository: (url: string): Promise<void> =>
     ipcRenderer.invoke('github:open-repository', url),
+  getProjects: (): Promise<WorkspaceProject[]> => ipcRenderer.invoke('projects:get'),
+  chooseAndAddProject: (): Promise<WorkspaceProject[] | null> =>
+    ipcRenderer.invoke('projects:choose-and-add'),
+  removeProject: (id: string): Promise<WorkspaceProject[]> =>
+    ipcRenderer.invoke('projects:remove', id),
   onGitHubConnectionChanged: (callback: (status: GitHubConnectionStatus) => void): (() => void) => {
     const listener = (_event: IpcRendererEvent, status: GitHubConnectionStatus): void =>
       callback(status)

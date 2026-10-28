@@ -27,7 +27,10 @@ interface ProviderOptions {
 }
 
 interface ChatCompletionPayload {
-  choices?: Array<{ message?: { content?: unknown } }>
+  choices?: Array<{
+    message?: { content?: unknown }
+    finish_reason?: string | null
+  }>
 }
 
 export class OpenAICompatibleProvider implements AIProvider {
@@ -173,18 +176,24 @@ export class OpenAICompatibleProvider implements AIProvider {
     }
 
     try {
+      const requestBody: Record<string, unknown> = {
+        model,
+        messages: requestMessages,
+        temperature: 0.2
+      }
+      if (model.startsWith('o1') || model.startsWith('o3')) {
+        requestBody.max_completion_tokens = 4096
+      } else {
+        requestBody.max_tokens = 4096
+      }
+
       const response = await fetch(this.endpoint, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${key}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          model,
-          messages: requestMessages,
-          temperature: 0.2,
-          max_completion_tokens: 2048,
-        }),
+        body: JSON.stringify(requestBody),
         signal: controller.signal
       })
       if (!response.ok) {
@@ -209,7 +218,11 @@ export class OpenAICompatibleProvider implements AIProvider {
           attempts: 1
         }
       }
-      return { success: true, text: text.slice(0, maxMessageLength) }
+      const finishReason = (payload as ChatCompletionPayload)?.choices?.[0]?.finish_reason
+      const fullText = finishReason === 'length'
+        ? `${text}\n\n[Note: Response reached maximum output token limit.]`
+        : text
+      return { success: true, text: fullText }
     } catch (error) {
       const timedOut = controller.signal.aborted
       return {

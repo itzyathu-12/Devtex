@@ -6,7 +6,8 @@ import type {
   AppPreferences,
   AppRuntimeInfo,
   ConfigurationValueStatus,
-  StartupPage
+  StartupPage,
+  WorkspaceProject
 } from '../shared/settings'
 
 declare const __SUPABASE_URL_STATUS__: ConfigurationValueStatus
@@ -28,7 +29,8 @@ const defaultPreferences: AppPreferences = {
   startupPage: 'Dashboard',
   geminiModel: defaultProviderModels.gemini,
   aiProvider: 'gemini',
-  providerModels: { ...defaultProviderModels }
+  providerModels: { ...defaultProviderModels },
+  projects: []
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -54,6 +56,16 @@ function isAIProviderId(value: unknown): value is AIProviderId {
   return typeof value === 'string' && validProviders.includes(value as AIProviderId)
 }
 
+function isValidProject(value: unknown): value is WorkspaceProject {
+  if (!isRecord(value)) return false
+  return (
+    typeof value.id === 'string' &&
+    typeof value.name === 'string' &&
+    typeof value.path === 'string' &&
+    typeof value.addedAt === 'string'
+  )
+}
+
 function validatePreferences(value: unknown): AppPreferences {
   if (!isRecord(value)) throw new Error('Invalid preferences.')
   if (typeof value.reduceMotion !== 'boolean') throw new Error('Invalid motion preference.')
@@ -76,6 +88,10 @@ function validatePreferences(value: unknown): AppPreferences {
     ? rawModels.openai.trim()
     : defaultProviderModels.openai
 
+  const projects: WorkspaceProject[] = Array.isArray(value.projects)
+    ? value.projects.filter(isValidProject)
+    : []
+
   return {
     reduceMotion: value.reduceMotion,
     startupPage: value.startupPage as StartupPage,
@@ -85,7 +101,8 @@ function validatePreferences(value: unknown): AppPreferences {
       gemini: geminiModel,
       groq: groqModel,
       openai: openaiModel
-    }
+    },
+    projects
   }
 }
 
@@ -118,6 +135,28 @@ export async function savePreferences(value: unknown): Promise<AppPreferences> {
   const preferences = validatePreferences(value)
   await writeFile(preferencesPath, JSON.stringify(preferences, null, 2), { mode: 0o600 })
   return preferences
+}
+
+export async function getProjects(): Promise<WorkspaceProject[]> {
+  const preferences = await getPreferences()
+  return preferences.projects ?? []
+}
+
+export async function addProject(project: WorkspaceProject): Promise<WorkspaceProject[]> {
+  const preferences = await getPreferences()
+  const current = preferences.projects ?? []
+  const filtered = current.filter((p) => p.path !== project.path && p.id !== project.id)
+  const updated = [project, ...filtered]
+  await savePreferences({ ...preferences, projects: updated })
+  return updated
+}
+
+export async function removeProject(id: string): Promise<WorkspaceProject[]> {
+  const preferences = await getPreferences()
+  const current = preferences.projects ?? []
+  const updated = current.filter((p) => p.id !== id)
+  await savePreferences({ ...preferences, projects: updated })
+  return updated
 }
 
 export function getRuntimeInfo(): AppRuntimeInfo {

@@ -9,8 +9,17 @@ import icon from '../../resources/icon.png?asset'
 import { GitHubRepositoryService } from './github-repositories'
 import { getCurrentAIProvider } from './providers/provider-factory'
 
-import { getPreferences, getRuntimeInfo, savePreferences } from './settings'
+import {
+  getPreferences,
+  getProjects,
+  addProject,
+  removeProject,
+  getRuntimeInfo,
+  savePreferences
+} from './settings'
+import { chooseProjectFolder, inspectProject } from './project-inspector'
 import type { GitHubConnectionStatus } from '../shared/github'
+import type { WorkspaceProject, GeminiChatRequest } from '../shared/settings'
 
 declare const __GITHUB_OAUTH_CLIENT_ID__: string
 
@@ -173,10 +182,61 @@ ipcMain.handle('ai:test', async (event) => {
   return provider.testConnection();
 });
 
-ipcMain.handle('ai:chat', async (event, value) => {
+ipcMain.handle('projects:get', async (event) => {
+  assertTrustedSender(event)
+  return getProjects()
+})
+
+ipcMain.handle('projects:choose-and-add', async (event) => {
+  assertTrustedSender(event)
+  const chosen = await chooseProjectFolder(mainWindow)
+  if (!chosen) return null
+  const project: WorkspaceProject = {
+    id: `proj_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    name: chosen.name,
+    path: chosen.path,
+    addedAt: new Date().toISOString()
+  }
+  return addProject(project)
+})
+
+ipcMain.handle('projects:remove', async (event, id: unknown) => {
+  assertTrustedSender(event)
+  if (typeof id !== 'string' || !id) throw new Error('Invalid project identifier.')
+  return removeProject(id)
+})
+
+ipcMain.handle('ai:chat', async (event, value: unknown) => {
   assertTrustedSender(event);
+  let requestValue = value;
+  if (
+    value &&
+    typeof value === 'object' &&
+    'projectPath' in value &&
+    typeof (value as { projectPath?: unknown }).projectPath === 'string' &&
+    (value as { projectPath: string }).projectPath.trim()
+  ) {
+    const rawReq = value as GeminiChatRequest;
+    const projectPath = rawReq.projectPath!.trim();
+    const lastUserMessage = [...rawReq.messages].reverse().find((m) => m.role === 'user');
+    try {
+      const projectContext = await inspectProject(projectPath, lastUserMessage?.text);
+      const enrichedMessages = rawReq.messages.map((m, idx, arr) => {
+        if (idx === arr.length - 1 && m.role === 'user') {
+          return {
+            role: m.role,
+            text: `${projectContext}\n\n[Developer Question]\n${m.text}`
+          };
+        }
+        return m;
+      });
+      requestValue = { ...rawReq, messages: enrichedMessages };
+    } catch (error) {
+      console.warn('[Project inspection notice]', error);
+    }
+  }
   const provider = await getCurrentAIProvider();
-  return provider.chat(value);
+  return provider.chat(requestValue);
 });
 
 ipcMain.on('auth:renderer-ready', (event) => {

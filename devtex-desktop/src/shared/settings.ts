@@ -18,12 +18,20 @@ export interface SanitizedDiagnosticEntry {
   message: string
 }
 
+export interface WorkspaceProject {
+  id: string
+  name: string
+  path: string
+  addedAt: string
+}
+
 export interface AppPreferences {
   reduceMotion: boolean
   startupPage: StartupPage
   geminiModel: string
   aiProvider: AIProviderId
   providerModels: Record<AIProviderId, string>
+  projects?: WorkspaceProject[]
 }
 
 export interface GeminiStatus {
@@ -75,6 +83,7 @@ export interface GeminiChatMessage {
 export interface GeminiChatRequest {
   messages: GeminiChatMessage[]
   mode?: 'chat' | 'code-assistance' | 'code-review'
+  projectPath?: string
 }
 
 export type GeminiChatResponse =

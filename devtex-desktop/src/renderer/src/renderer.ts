@@ -7,9 +7,12 @@ import type {
   GeminiChatMessage,
   GeminiStatus,
   SettingsSection,
-  StartupPage
+  StartupPage,
+  WorkspaceProject
 } from '../../shared/settings'
 import { withLoadingState } from '../../shared/async-state'
+
+let activeAIProjectPath: string | null = null
 
 const settingsTitles: Record<SettingsSection, string> = {
   account: 'Account',
@@ -198,7 +201,7 @@ function showPage(page: WorkspacePage, description = ''): void {
 }
 
 function setupProjects(): void {
-  const projects: string[] = []
+  let projects: WorkspaceProject[] = []
   const count = document.getElementById('project-count')
   const list = document.getElementById('project-list')
 
@@ -229,7 +232,7 @@ function setupProjects(): void {
       button.className = 'button button-secondary'
       button.id = 'add-first-project'
       button.textContent = '＋ Add your first project'
-      button.addEventListener('click', addProject)
+      button.addEventListener('click', () => void handleAddProject())
 
       empty.append(icon, heading, description, button)
       list.append(empty)
@@ -248,45 +251,93 @@ function setupProjects(): void {
       meta.className = 'project-meta'
 
       const heading = document.createElement('strong')
-      heading.textContent = project
+      heading.textContent = project.name
 
       const description = document.createElement('span')
-      description.textContent = 'Added to workspace · Local project'
+      description.textContent = project.path
+      description.title = project.path
 
-      const status = document.createElement('span')
-      status.className = 'project-status'
-      status.textContent = 'READY'
+      const actions = document.createElement('div')
+      actions.style.display = 'flex'
+      actions.style.alignItems = 'center'
+      actions.style.gap = '8px'
+
+      const exploreBtn = document.createElement('button')
+      exploreBtn.type = 'button'
+      exploreBtn.className = 'button button-secondary'
+      exploreBtn.style.padding = '5px 12px'
+      exploreBtn.style.minHeight = '28px'
+      exploreBtn.style.fontSize = '10px'
+      exploreBtn.textContent = 'Explore with AI ↗'
+      exploreBtn.title = `Explore ${project.name} using AI`
+      exploreBtn.addEventListener('click', (e) => {
+        e.stopPropagation()
+        activeAIProjectPath = project.path
+        openSettings('chat')
+      })
+
+      const removeBtn = document.createElement('button')
+      removeBtn.type = 'button'
+      removeBtn.className = 'text-button'
+      removeBtn.style.padding = '5px 8px'
+      removeBtn.style.minHeight = '28px'
+      removeBtn.style.fontSize = '10px'
+      removeBtn.textContent = 'Remove'
+      removeBtn.title = 'Remove project from workspace'
+      removeBtn.addEventListener('click', async (e) => {
+        e.stopPropagation()
+        if (window.confirm(`Remove "${project.name}" from your DEVTEX workspace?`)) {
+          try {
+            projects = await window.api.removeProject(project.id)
+            if (activeAIProjectPath === project.path) {
+              activeAIProjectPath = null
+            }
+            renderProjects()
+            addActivity(`Removed project: ${project.name}`, 'Project removed from workspace.')
+          } catch (error) {
+            window.alert(error instanceof Error ? error.message : 'Could not remove project.')
+          }
+        }
+      })
 
       meta.append(heading, description)
-      row.append(symbol, meta, status)
+      actions.append(exploreBtn, removeBtn)
+      row.append(symbol, meta, actions)
       list.append(row)
     })
   }
 
-  function addProject(): void {
-    const input = window.prompt('Enter a name for your project:')
-    if (!input || !input.trim()) return
-
-    const name = input.trim()
-
-    if (projects.some((project) => project.toLowerCase() === name.toLowerCase())) {
-      window.alert('A project with that name already exists in this session.')
-      return
+  async function handleAddProject(): Promise<void> {
+    try {
+      const updated = await window.api.chooseAndAddProject()
+      if (!updated) return
+      projects = updated
+      renderProjects()
+      const newest = updated[0]
+      if (newest) {
+        addActivity(`Added project: ${newest.name}`, newest.path)
+      }
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Could not add project.')
     }
-
-    projects.push(name)
-    renderProjects()
-    addActivity(`Added project: ${name}`, 'Project added to this session.')
   }
 
-  document.getElementById('new-project')?.addEventListener('click', addProject)
-  document.getElementById('add-first-project')?.addEventListener('click', addProject)
+  document.getElementById('new-project')?.addEventListener('click', () => void handleAddProject())
+  document.getElementById('add-first-project')?.addEventListener('click', () => void handleAddProject())
 
   document.getElementById('view-projects')?.addEventListener('click', () => {
     document.querySelector<HTMLButtonElement>('[data-page="Projects"]')?.click()
   })
 
-  renderProjects()
+  void window.api
+    .getProjects()
+    .then((loaded) => {
+      projects = loaded
+      renderProjects()
+    })
+    .catch(() => {
+      renderProjects()
+    })
 }
 
 function setupDemoScan(): void {
@@ -1228,12 +1279,6 @@ function formatGeminiFailureMessage(failure: {
     : `${failure.message} (${attemptLabel})`
 }
 
-function setGeminiBusy(buttons: HTMLButtonElement[], busy: boolean): void {
-  buttons.forEach((button) => {
-    button.disabled = busy || (button.dataset.requiresAIKey === 'true' && !currentAIStatus.configured)
-  })
-}
-
 function renderGeminiChat(panel: HTMLElement): void {
   const messages: GeminiChatMessage[] = []
   const mode = document.createElement('select')
@@ -1249,6 +1294,60 @@ function renderGeminiChat(panel: HTMLElement): void {
     option.textContent = item.label
     mode.append(option)
   })
+
+  const projectSelector = document.createElement('select')
+  projectSelector.id = 'ai-chat-project'
+  projectSelector.style.flex = '1'
+  projectSelector.style.minWidth = '180px'
+  projectSelector.style.minHeight = '34px'
+  projectSelector.style.padding = '0 10px'
+  projectSelector.style.border = '1px solid #393544'
+  projectSelector.style.borderRadius = '6px'
+  projectSelector.style.color = '#e8eaf2'
+  projectSelector.style.background = '#0b0d13'
+  projectSelector.style.font = 'inherit'
+  projectSelector.style.fontSize = '10px'
+
+  const defaultOption = document.createElement('option')
+  defaultOption.value = ''
+  defaultOption.textContent = 'Project: None (General chat)'
+  projectSelector.append(defaultOption)
+
+  void window.api.getProjects().then((loaded) => {
+    loaded.forEach((proj) => {
+      const opt = document.createElement('option')
+      opt.value = proj.path
+      opt.textContent = `Project: ${proj.name}`
+      if (activeAIProjectPath === proj.path) {
+        opt.selected = true
+      }
+      projectSelector.append(opt)
+    })
+  })
+
+  projectSelector.addEventListener('change', () => {
+    activeAIProjectPath = projectSelector.value || null
+  })
+
+  const controlsRow = document.createElement('div')
+  controlsRow.style.display = 'flex'
+  controlsRow.style.gap = '8px'
+  controlsRow.style.margin = '10px 0'
+  controlsRow.style.flexWrap = 'wrap'
+
+  mode.style.flex = '1'
+  mode.style.minWidth = '130px'
+  mode.style.minHeight = '34px'
+  mode.style.padding = '0 10px'
+  mode.style.border = '1px solid #393544'
+  mode.style.borderRadius = '6px'
+  mode.style.color = '#e8eaf2'
+  mode.style.background = '#0b0d13'
+  mode.style.font = 'inherit'
+  mode.style.fontSize = '10px'
+
+  controlsRow.append(mode, projectSelector)
+
   const transcript = document.createElement('div')
   transcript.className = 'gemini-chat-transcript'
   transcript.setAttribute('aria-live', 'polite')
@@ -1260,7 +1359,7 @@ function renderGeminiChat(panel: HTMLElement): void {
   input.rows = 3
   input.maxLength = 8_000
   input.placeholder = currentAIStatus.configured
-    ? 'Ask a question or provide code…'
+    ? 'Ask a question or explore your project files…'
     : `Configure a ${currentAIStatus.providerLabel} API key in API Configuration first.`
   input.disabled = !currentAIStatus.configured
   input.setAttribute('aria-label', `Message for ${currentAIStatus.providerLabel}`)
@@ -1280,7 +1379,12 @@ function renderGeminiChat(panel: HTMLElement): void {
   status.setAttribute('role', 'status')
   actions.append(send, reset, status)
   controls.append(input, actions)
-  panel.append(createInfoRow('Provider and model', `${currentAIStatus.providerLabel} · ${currentAIStatus.model}`), mode, transcript, controls)
+  panel.append(
+    createInfoRow('Provider and model', `${currentAIStatus.providerLabel} · ${currentAIStatus.model}`),
+    controlsRow,
+    transcript,
+    controls
+  )
 
   const renderMessages = (): void => {
     transcript.replaceChildren()
@@ -1288,7 +1392,7 @@ function renderGeminiChat(panel: HTMLElement): void {
       const empty = document.createElement('p')
       empty.className = 'gemini-chat-empty'
       empty.textContent = currentAIStatus.configured
-        ? `Start a conversation with ${currentAIStatus.providerLabel}.`
+        ? `Start a conversation or explore projects with ${currentAIStatus.providerLabel}.`
         : 'Save an API key in API Configuration to start chatting.'
       transcript.append(empty)
       return
@@ -1322,17 +1426,23 @@ function renderGeminiChat(panel: HTMLElement): void {
     input.value = ''
     renderMessages()
     send.textContent = 'Send'
+    const targetProjectPath = projectSelector.value || activeAIProjectPath || undefined
     await withLoadingState(
       async () => {
-        status.textContent = `${currentAIStatus.providerLabel} is responding…`
+        status.textContent = targetProjectPath
+          ? `${currentAIStatus.providerLabel} is inspecting project and responding…`
+          : `${currentAIStatus.providerLabel} is responding…`
         const pending = document.createElement('p')
         pending.className = 'gemini-chat-pending'
-        pending.textContent = 'Generating response…'
+        pending.textContent = targetProjectPath
+          ? 'Inspecting project files and generating response…'
+          : 'Generating response…'
         transcript.append(pending)
         try {
           const response = await window.api.sendAIChat({
             messages: requestMessages,
-            mode: mode.value as 'chat' | 'code-assistance' | 'code-review'
+            mode: mode.value as 'chat' | 'code-assistance' | 'code-review',
+            projectPath: targetProjectPath
           })
           if (response.success) {
             messages.push({ role: 'assistant', text: response.text })

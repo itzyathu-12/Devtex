@@ -9,7 +9,8 @@ import type {
   GeminiChatRequest,
   GeminiChatResponse,
   GeminiStatus,
-  GeminiTestResult
+  GeminiTestResult,
+  WorkspaceProject
 } from '../shared/settings'
 
 declare global {
@@ -31,6 +32,9 @@ declare global {
     sendAIChat(request: GeminiChatRequest): Promise<GeminiChatResponse>
     disconnectGitHubRepositories(): Promise<GitHubConnectionStatus>
     openGitHubRepository(url: string): Promise<void>
+    getProjects(): Promise<WorkspaceProject[]>
+    chooseAndAddProject(): Promise<WorkspaceProject[] | null>
+    removeProject(id: string): Promise<WorkspaceProject[]>
     onGitHubConnectionChanged(callback: (status: GitHubConnectionStatus) => void): () => void
   }
 
