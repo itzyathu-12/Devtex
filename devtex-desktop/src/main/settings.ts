@@ -2,6 +2,7 @@ import { app } from 'electron'
 import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type {
+  AIProviderId,
   AppPreferences,
   AppRuntimeInfo,
   ConfigurationValueStatus,
@@ -14,18 +15,36 @@ declare const __GITHUB_OAUTH_CLIENT_STATUS__: ConfigurationValueStatus
 
 const preferencesPath = join(app.getPath('userData'), 'preferences.json')
 const startupPages: StartupPage[] = ['Dashboard', 'Settings']
+const validProviders: AIProviderId[] = ['gemini', 'groq', 'openai']
+
+export const defaultProviderModels: Record<AIProviderId, string> = {
+  gemini: 'gemini-2.5-flash-lite',
+  groq: 'llama-3.3-70b-versatile',
+  openai: 'gpt-4o-mini'
+}
+
 const defaultPreferences: AppPreferences = {
   reduceMotion: false,
   startupPage: 'Dashboard',
-  geminiModel: 'gemini-2.5-flash'
+  geminiModel: defaultProviderModels.gemini,
+  aiProvider: 'gemini',
+  providerModels: { ...defaultProviderModels }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
 }
 
 function isValidGeminiModel(value: unknown): value is string {
   return typeof value === 'string' && /^gemini-[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/.test(value)
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
+function isValidProviderModel(value: unknown): value is string {
+  return typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,119}$/.test(value.trim())
+}
+
+function isAIProviderId(value: unknown): value is AIProviderId {
+  return typeof value === 'string' && validProviders.includes(value as AIProviderId)
 }
 
 function validatePreferences(value: unknown): AppPreferences {
@@ -37,10 +56,29 @@ function validatePreferences(value: unknown): AppPreferences {
   const geminiModel =
     value.geminiModel === undefined ? defaultPreferences.geminiModel : value.geminiModel
   if (!isValidGeminiModel(geminiModel)) throw new Error('Invalid Gemini model identifier.')
+
+  const aiProvider: AIProviderId = isAIProviderId(value.aiProvider)
+    ? value.aiProvider
+    : defaultPreferences.aiProvider
+
+  const rawModels = isRecord(value.providerModels) ? value.providerModels : {}
+  const groqModel = isValidProviderModel(rawModels.groq)
+    ? rawModels.groq.trim()
+    : defaultProviderModels.groq
+  const openaiModel = isValidProviderModel(rawModels.openai)
+    ? rawModels.openai.trim()
+    : defaultProviderModels.openai
+
   return {
     reduceMotion: value.reduceMotion,
     startupPage: value.startupPage as StartupPage,
-    geminiModel
+    geminiModel,
+    aiProvider,
+    providerModels: {
+      gemini: geminiModel,
+      groq: groqModel,
+      openai: openaiModel
+    }
   }
 }
 
@@ -49,7 +87,12 @@ export async function getPreferences(): Promise<AppPreferences> {
   try {
     serialized = await readFile(preferencesPath, 'utf8')
   } catch (error) {
-    if (isRecord(error) && error.code === 'ENOENT') return { ...defaultPreferences }
+    if (isRecord(error) && error.code === 'ENOENT') {
+      return {
+        ...defaultPreferences,
+        providerModels: { ...defaultProviderModels }
+      }
+    }
     throw error
   }
 
@@ -57,7 +100,10 @@ export async function getPreferences(): Promise<AppPreferences> {
     const value: unknown = JSON.parse(serialized)
     return validatePreferences(value)
   } catch {
-    return { ...defaultPreferences }
+    return {
+      ...defaultPreferences,
+      providerModels: { ...defaultProviderModels }
+    }
   }
 }
 

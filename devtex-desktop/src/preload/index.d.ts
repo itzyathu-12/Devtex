@@ -4,7 +4,7 @@ import type {
   GitHubProfile,
   GitHubRepositoryResult
 } from '../shared/github'
-import type { AppPreferences, AppRuntimeInfo } from '../shared/settings'
+import type { AIProviderId, AppPreferences, AppRuntimeInfo } from '../shared/settings'
 import type {
   GeminiChatRequest,
   GeminiChatResponse,
@@ -22,12 +22,13 @@ declare global {
     getRuntimeInfo(): Promise<AppRuntimeInfo>
     getPreferences(): Promise<AppPreferences>
     savePreferences(preferences: AppPreferences): Promise<AppPreferences>
-    getGeminiStatus(): Promise<GeminiStatus>
-    saveGeminiKey(key: string): Promise<GeminiStatus>
-    removeGeminiKey(): Promise<GeminiStatus>
-    setGeminiModel(model: string): Promise<GeminiStatus>
-    testGeminiConnection(): Promise<GeminiTestResult>
-    sendGeminiChat(request: GeminiChatRequest): Promise<GeminiChatResponse>
+    getAIStatus(): Promise<GeminiStatus>
+    setAIProvider(provider: AIProviderId): Promise<GeminiStatus>
+    saveAIKey(key: string): Promise<GeminiStatus>
+    removeAIKey(): Promise<GeminiStatus>
+    setAIModel(model: string): Promise<GeminiStatus>
+    testAIConnection(): Promise<GeminiTestResult>
+    sendAIChat(request: GeminiChatRequest): Promise<GeminiChatResponse>
     disconnectGitHubRepositories(): Promise<GitHubConnectionStatus>
     openGitHubRepository(url: string): Promise<void>
     onGitHubConnectionChanged(callback: (status: GitHubConnectionStatus) => void): () => void

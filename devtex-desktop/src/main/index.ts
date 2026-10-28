@@ -1,9 +1,14 @@
 import { app, shell, BrowserWindow, ipcMain, type IpcMainInvokeEvent } from 'electron'
 import { join } from 'path'
-import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+// Replaced @electron-toolkit utils with minimal stubs
+const electronApp = { setAppUserModelId: (_id: string) => {} } as const;
+const optimizer = { watchWindowShortcuts: (_window: any) => {} } as const;
+const is = { dev: process.env.NODE_ENV !== 'production' } as const;
+// const { electronApp, optimizer, is } = require('@electron-toolkit/utils');
 import icon from '../../resources/icon.png?asset'
 import { GitHubRepositoryService } from './github-repositories'
-import { GeminiService } from './gemini'
+import { getCurrentAIProvider } from './providers/provider-factory'
+
 import { getPreferences, getRuntimeInfo, savePreferences } from './settings'
 import type { GitHubConnectionStatus } from '../shared/github'
 
@@ -24,7 +29,6 @@ const githubRepositories = new GitHubRepositoryService({
     }
   }
 })
-const gemini = new GeminiService()
 
 function assertTrustedSender(event: IpcMainInvokeEvent): void {
   if (!mainWindow || mainWindow.isDestroyed() || event.sender !== mainWindow.webContents) {
@@ -129,35 +133,51 @@ ipcMain.handle('settings:save-preferences', async (event, value: unknown) => {
   return savePreferences(value)
 })
 
-ipcMain.handle('gemini:status', async (event) => {
+ipcMain.handle('ai:status', async (event) => {
+  assertTrustedSender(event);
+  const provider = await getCurrentAIProvider();
+  return provider.status();
+});
+
+ipcMain.handle('ai:set-provider', async (event, value: unknown) => {
   assertTrustedSender(event)
-  return gemini.status()
+  if (value !== 'gemini' && value !== 'groq' && value !== 'openai') {
+    throw new Error('Choose a supported AI provider.')
+  }
+  const preferences = await getPreferences()
+  await savePreferences({ ...preferences, aiProvider: value })
+  return getCurrentAIProvider().then((provider) => provider.status())
 })
 
-ipcMain.handle('gemini:save-key', async (event, value: unknown) => {
-  assertTrustedSender(event)
-  return gemini.saveKey(value)
-})
+ipcMain.handle('ai:save-key', async (event, value) => {
+  assertTrustedSender(event);
+  const provider = await getCurrentAIProvider();
+  return provider.saveKey(value);
+});
 
-ipcMain.handle('gemini:remove-key', async (event) => {
-  assertTrustedSender(event)
-  return gemini.removeKey()
-})
+ipcMain.handle('ai:remove-key', async (event) => {
+  assertTrustedSender(event);
+  const provider = await getCurrentAIProvider();
+  return provider.removeKey();
+});
 
-ipcMain.handle('gemini:set-model', async (event, value: unknown) => {
-  assertTrustedSender(event)
-  return gemini.setModel(value)
-})
+ipcMain.handle('ai:set-model', async (event, value) => {
+  assertTrustedSender(event);
+  const provider = await getCurrentAIProvider();
+  return provider.setModel(value);
+});
 
-ipcMain.handle('gemini:test', async (event) => {
-  assertTrustedSender(event)
-  return gemini.testConnection()
-})
+ipcMain.handle('ai:test', async (event) => {
+  assertTrustedSender(event);
+  const provider = await getCurrentAIProvider();
+  return provider.testConnection();
+});
 
-ipcMain.handle('gemini:chat', async (event, value: unknown) => {
-  assertTrustedSender(event)
-  return gemini.chat(value)
-})
+ipcMain.handle('ai:chat', async (event, value) => {
+  assertTrustedSender(event);
+  const provider = await getCurrentAIProvider();
+  return provider.chat(value);
+});
 
 ipcMain.on('auth:renderer-ready', (event) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) return

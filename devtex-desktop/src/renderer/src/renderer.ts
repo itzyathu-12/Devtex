@@ -3,6 +3,7 @@ import type { GitHubConnectionStatus, GitHubRepository } from '../../shared/gith
 import type {
   AppPreferences,
   AppRuntimeInfo,
+  AIProviderId,
   GeminiChatMessage,
   GeminiStatus,
   SettingsSection,
@@ -22,8 +23,8 @@ const settingsTitles: Record<SettingsSection, string> = {
 }
 const settingsDescriptions: Record<SettingsSection, string> = {
   account: 'Manage your DEVTEX sign-in session.',
-  api: 'Configure your Google Gemini API key and model.',
-  chat: 'Chat with Gemini using your saved API key.',
+  api: 'Choose an AI provider and manage its API key and model.',
+  chat: 'Chat, get code assistance, or review code with your selected AI provider.',
   runtime: 'Review non-sensitive application and configuration status.',
   integrations: 'Check the independent status of connected services.',
   preferences: 'Choose application behavior that persists on this device.',
@@ -37,10 +38,18 @@ let currentRuntimeInfo: AppRuntimeInfo | null = null
 let currentPreferences: AppPreferences = {
   reduceMotion: false,
   startupPage: 'Dashboard',
-  geminiModel: 'gemini-2.5-flash-lite'
+  geminiModel: 'gemini-2.5-flash-lite',
+  aiProvider: 'gemini',
+  providerModels: {
+    gemini: 'gemini-2.5-flash-lite',
+    groq: 'llama-3.3-70b-versatile',
+    openai: 'gpt-4o-mini'
+  }
 }
 let activeSettingsSection: SettingsSection = 'account'
-let currentGeminiStatus: GeminiStatus = {
+let currentAIStatus: GeminiStatus = {
+  provider: 'gemini',
+  providerLabel: 'Google Gemini',
   configured: false,
   model: 'gemini-2.5-flash-lite',
   credentialState: 'missing',
@@ -833,7 +842,7 @@ function renderSettingsSection(section: SettingsSection): void {
           configurationLabel(info.supabasePublishableKeyStatus)
         ),
         createInfoRow('GitHub OAuth Client ID', configurationLabel(info.githubOAuthClientStatus)),
-        createInfoRow('Google Gemini', geminiCredentialLabel())
+        createInfoRow(currentAIStatus.providerLabel, aiCredentialLabel(), `Model: ${currentAIStatus.model}`)
       )
     }
     if (section === 'diagnostics') {
@@ -874,7 +883,7 @@ function renderSettingsSection(section: SettingsSection): void {
         currentAccountEmail ? 'Connected' : 'Not connected',
         'Reflects the current authentication session only; no database health check was performed.'
       ),
-      createInfoRow('Google Gemini', geminiCredentialLabel(), `Model: ${currentGeminiStatus.model}`)
+      createInfoRow(currentAIStatus.providerLabel, aiCredentialLabel(), `Model: ${currentAIStatus.model}`)
     )
     const actions = document.createElement('div')
     actions.className = 'settings-actions'
@@ -913,9 +922,9 @@ function connectionLabel(status: GitHubConnectionStatus): string {
   return 'Not connected'
 }
 
-function geminiCredentialLabel(): string {
-  if (currentGeminiStatus.credentialState === 'unreadable') return 'Unreadable'
-  return currentGeminiStatus.configured ? 'Configured' : 'Not configured'
+function aiCredentialLabel(): string {
+  if (currentAIStatus.credentialState === 'unreadable') return 'Unreadable'
+  return currentAIStatus.configured ? 'Configured' : 'Not configured'
 }
 
 function configurationLabel(status: AppRuntimeInfo['supabaseUrlStatus']): string {
@@ -982,7 +991,9 @@ function renderPreferences(panel: HTMLElement): void {
     const next: AppPreferences = {
       reduceMotion: motion.checked,
       startupPage: pageSelect.value as StartupPage,
-      geminiModel: currentPreferences.geminiModel
+      geminiModel: currentPreferences.geminiModel,
+      aiProvider: currentPreferences.aiProvider,
+      providerModels: currentPreferences.providerModels
     }
     save.disabled = true
     status.textContent = 'Saving…'
@@ -1007,58 +1018,59 @@ function renderPreferences(panel: HTMLElement): void {
 }
 
 function renderGeminiConfiguration(panel: HTMLElement): void {
-  const unreadable = currentGeminiStatus.credentialState === 'unreadable'
-  const providerRow = createInfoRow(
-    'Provider',
-    'Google Gemini',
-    unreadable
-      ? 'The saved key cannot be read in the current encryption context.'
-      : currentGeminiStatus.configured
-        ? 'API key is stored securely on this device.'
-        : 'No API key is stored.'
-  )
-  const configurationRow = createInfoRow(
-    'Configuration',
-    unreadable ? 'Unreadable' : currentGeminiStatus.configured ? 'Configured' : 'Not configured'
-  )
-  let recoveryNote: HTMLElement | null = null
-  const storageContext = currentGeminiStatus.storageContext
+  const providerSelect = document.createElement('select')
+  providerSelect.id = 'ai-provider'
+  const providers: Array<{ id: AIProviderId; label: string }> = [
+    { id: 'gemini', label: 'Google Gemini' },
+    { id: 'groq', label: 'Groq' },
+    { id: 'openai', label: 'OpenAI' }
+  ]
+  providers.forEach(({ id, label }) => {
+    const option = document.createElement('option')
+    option.value = id
+    option.textContent = label
+    option.selected = currentPreferences.aiProvider === id
+    providerSelect.append(option)
+  })
+  const providerLabel = document.createElement('label')
+  providerLabel.htmlFor = providerSelect.id
+  providerLabel.textContent = 'AI provider'
+  const providerGroup = document.createElement('div')
+  providerGroup.className = 'settings-preferences'
+  providerGroup.append(providerLabel, providerSelect)
+  const unreadable = currentAIStatus.credentialState === 'unreadable'
+  const storage = currentAIStatus.storageContext
   panel.append(
-    providerRow,
-    configurationRow,
+    providerGroup,
     createInfoRow(
-      'Credential storage context',
-      `${storageContext.packaged ? 'Packaged app' : 'Development app'} · ${storageContext.platform} · ${storageContext.backend}`,
-      storageContext.userDataDirectory
+      'Credential',
+      unreadable ? 'Unreadable' : currentAIStatus.configured ? 'Configured' : 'Not configured',
+      unreadable
+        ? 'The encrypted key is preserved. Remove it with confirmation before saving a replacement.'
+        : currentAIStatus.configured
+          ? 'The API key is stored using Electron secure storage and is never displayed again.'
+          : 'No API key is stored for this provider.'
+    ),
+    createInfoRow(
+      'Secure storage',
+      `${storage.packaged ? 'Packaged app' : 'Development app'} · ${storage.platform} · ${storage.backend}`,
+      storage.userDataDirectory
     )
   )
-
-  if (unreadable) {
-    recoveryNote = document.createElement('p')
-    recoveryNote.className = 'settings-notice gemini-recovery-note'
-    recoveryNote.setAttribute('role', 'alert')
-    recoveryNote.textContent =
-      'The saved credential has not been deleted or replaced. This can happen after changing the OS account, app data directory, or encryption backend. Compare the storage context above with the installation where the key was saved. To recover, choose Remove key, confirm the removal, then enter and save the key again.'
-    panel.append(recoveryNote)
-  }
 
   const form = document.createElement('div')
   form.className = 'settings-preferences gemini-configuration'
   const modelLabel = document.createElement('label')
-  modelLabel.htmlFor = 'gemini-model'
+  modelLabel.htmlFor = 'ai-model'
   modelLabel.textContent = 'Model identifier'
   const model = document.createElement('input')
-  model.id = 'gemini-model'
+  model.id = 'ai-model'
   model.type = 'text'
   model.autocomplete = 'off'
-  model.maxLength = 88
-  model.value = currentGeminiStatus.model
-  model.placeholder = 'gemini-2.5-flash'
+  model.maxLength = 120
+  model.value = currentAIStatus.model
+  model.placeholder = currentAIStatus.provider === 'gemini' ? 'gemini-2.5-flash' : 'Model identifier'
   form.append(modelLabel, model)
-  const modelHelp = document.createElement('p')
-  modelHelp.className = 'settings-help'
-  modelHelp.textContent = 'Must begin with gemini-. Changes are saved separately from your API key.'
-  form.append(modelHelp)
 
   const modelActions = document.createElement('div')
   modelActions.className = 'settings-actions'
@@ -1077,37 +1089,18 @@ function renderGeminiConfiguration(panel: HTMLElement): void {
   form.append(modelActions)
 
   const keyLabel = document.createElement('label')
-  keyLabel.htmlFor = 'gemini-api-key'
-  keyLabel.textContent = 'Gemini API key'
-  const keyRow = document.createElement('div')
-  keyRow.className = 'gemini-key-row'
+  keyLabel.htmlFor = 'ai-api-key'
+  keyLabel.textContent = `${currentAIStatus.providerLabel} API key`
   const keyInput = document.createElement('input')
-  keyInput.id = 'gemini-api-key'
+  keyInput.id = 'ai-api-key'
   keyInput.type = 'password'
   keyInput.autocomplete = 'new-password'
   keyInput.spellcheck = false
   keyInput.maxLength = 256
-  keyInput.placeholder = currentGeminiStatus.configured
-    ? unreadable
-      ? 'Remove the unreadable key before saving a replacement'
-      : 'Saved key is not shown'
-    : 'Enter your Gemini API key'
-  keyInput.setAttribute('aria-label', 'Gemini API key')
-  const reveal = document.createElement('button')
-  reveal.type = 'button'
-  reveal.className = 'button button-secondary'
-  reveal.textContent = 'Show'
-  reveal.setAttribute('aria-label', 'Show Gemini API key')
-  reveal.addEventListener('click', () => {
-    const visible = keyInput.type === 'password'
-    keyInput.type = visible ? 'text' : 'password'
-    reveal.textContent = visible ? 'Hide' : 'Show'
-    reveal.setAttribute('aria-label', `${visible ? 'Hide' : 'Show'} Gemini API key`)
-    keyInput.focus()
-  })
-  keyRow.append(keyInput, reveal)
-  form.append(keyLabel, keyRow)
-
+  keyInput.placeholder = currentAIStatus.configured
+    ? 'Saved key is not shown'
+    : `Enter your ${currentAIStatus.providerLabel} API key`
+  keyInput.setAttribute('aria-label', keyLabel.textContent)
   const keyActions = document.createElement('div')
   keyActions.className = 'settings-actions'
   const saveKey = document.createElement('button')
@@ -1119,118 +1112,105 @@ function renderGeminiConfiguration(panel: HTMLElement): void {
   removeKey.type = 'button'
   removeKey.className = 'button button-secondary'
   removeKey.textContent = 'Remove key'
-  removeKey.dataset.requiresGeminiKey = 'true'
-  removeKey.disabled = !currentGeminiStatus.configured
+  removeKey.disabled = !currentAIStatus.configured
   const keyStatus = document.createElement('span')
   keyStatus.className = 'settings-save-status'
   keyStatus.setAttribute('role', 'status')
   keyActions.append(saveKey, removeKey, keyStatus)
-  form.append(keyActions)
+  form.append(keyLabel, keyInput, keyActions)
   panel.append(form)
 
-  saveModel.addEventListener('click', () => {
-    setGeminiBusy([saveModel, test, saveKey, removeKey], true)
-    result.textContent = 'Saving model…'
-    void window.api
-      .setGeminiModel(model.value)
+  const busy = (value: boolean): void => {
+    saveModel.disabled = value
+    test.disabled = value
+    saveKey.disabled = value || unreadable
+    removeKey.disabled = value || !currentAIStatus.configured
+    providerSelect.disabled = value
+  }
+  const refresh = (status: GeminiStatus): void => {
+    currentAIStatus = status
+    renderSettingsSection('api')
+  }
+  providerSelect.addEventListener('change', () => {
+    providerSelect.disabled = true
+    void window.api.setAIProvider(providerSelect.value as AIProviderId)
       .then((status) => {
-        currentGeminiStatus = status
-        currentPreferences.geminiModel = status.model
+        currentPreferences.aiProvider = status.provider
+        currentAIStatus = status
+        renderSettingsSection('api')
+      })
+      .catch((error: unknown) => {
+        result.textContent = error instanceof Error ? error.message : 'Could not change provider.'
+        providerSelect.disabled = false
+      })
+  })
+  saveModel.addEventListener('click', () => {
+    busy(true)
+    result.textContent = 'Saving model…'
+    void window.api.setAIModel(model.value)
+      .then((status) => {
+        currentAIStatus = status
+        currentPreferences.providerModels[status.provider] = status.model
+        if (status.provider === 'gemini') currentPreferences.geminiModel = status.model
         result.textContent = 'Model saved.'
       })
       .catch((error: unknown) => {
-        result.textContent =
-          error instanceof Error ? error.message : 'Could not save the Gemini model.'
+        result.textContent = error instanceof Error ? error.message : 'Could not save the model.'
       })
-      .finally(() => setGeminiBusy([saveModel, test, saveKey, removeKey], false))
+      .finally(() => busy(false))
   })
-
   test.addEventListener('click', () => {
-    setGeminiBusy([saveModel, test, saveKey, removeKey], true)
-    test.textContent = 'Testing…'
-    result.textContent = 'Testing Gemini connection…'
-    void window.api
-      .setGeminiModel(model.value)
+    busy(true)
+    result.textContent = `Testing ${currentAIStatus.providerLabel} connection…`
+    void window.api.setAIModel(model.value)
       .then((status) => {
-        currentGeminiStatus = status
-        currentPreferences.geminiModel = status.model
-        return window.api.testGeminiConnection()
+        currentAIStatus = status
+        currentPreferences.providerModels[status.provider] = status.model
+        return window.api.testAIConnection()
       })
       .then((testResult) => {
-        if (testResult.success) {
-          test.textContent = 'Test Connection'
-          result.textContent = `Connection successful. Gemini responded after ${testResult.attempts} ${testResult.attempts === 1 ? 'attempt' : 'attempts'}.`
-          return
-        }
-        test.textContent = testResult.retryable ? 'Retry Connection' : 'Test Connection'
-        result.textContent = formatGeminiFailureMessage(testResult)
+        result.textContent = testResult.success
+          ? `${currentAIStatus.providerLabel} responded successfully in ${testResult.attempts} ${testResult.attempts === 1 ? 'attempt' : 'attempts'}.`
+          : formatGeminiFailureMessage(testResult)
       })
       .catch((error: unknown) => {
-        test.textContent = 'Test Connection'
-        result.textContent =
-          error instanceof Error ? error.message : 'Gemini connection test failed.'
-        void window.api
-          .getGeminiStatus()
-          .then((status) => {
-            currentGeminiStatus = status
-            if (status.credentialState === 'unreadable') renderSettingsSection('api')
-          })
-          .catch(() => undefined)
+        result.textContent = error instanceof Error ? error.message : 'AI connection test failed.'
       })
-      .finally(() => setGeminiBusy([saveModel, test, saveKey, removeKey], false))
+      .finally(() => busy(false))
   })
-
   saveKey.addEventListener('click', () => {
     if (!keyInput.value) {
       keyStatus.textContent = 'Enter an API key first.'
       return
     }
-    setGeminiBusy([saveModel, test, saveKey, removeKey], true)
+    busy(true)
     keyStatus.textContent = 'Saving securely…'
-    void window.api
-      .saveGeminiKey(keyInput.value)
+    void window.api.saveAIKey(keyInput.value)
       .then((status) => {
-        currentGeminiStatus = status
         keyInput.value = ''
-        keyInput.placeholder = 'Saved key is not shown'
-        providerRow.querySelector('.settings-info-row p')!.textContent =
-          'API key is stored securely on this device.'
-        configurationRow.querySelector('.settings-state')!.textContent = 'Configured'
-        removeKey.disabled = false
-        saveKey.disabled = false
-        keyStatus.textContent = 'Key saved securely. The saved key cannot be viewed here.'
+        currentAIStatus = status
+        keyStatus.textContent = 'Key saved securely. It cannot be viewed here.'
+        refresh(status)
       })
       .catch((error: unknown) => {
-        keyStatus.textContent =
-          error instanceof Error ? error.message : 'Could not save the API key.'
+        keyStatus.textContent = error instanceof Error ? error.message : 'Could not save API key.'
       })
-      .finally(() => {
-        setGeminiBusy([saveModel, test, saveKey, removeKey], false)
-      })
+      .finally(() => busy(false))
   })
-
   removeKey.addEventListener('click', () => {
-    if (!window.confirm('Remove the saved Gemini API key from this device?')) return
-    setGeminiBusy([saveModel, test, saveKey, removeKey], true)
+    if (!window.confirm(`Remove the saved ${currentAIStatus.providerLabel} API key from this device?`)) return
+    busy(true)
     keyStatus.textContent = 'Removing key…'
-    void window.api
-      .removeGeminiKey()
+    void window.api.removeAIKey()
       .then((status) => {
-        currentGeminiStatus = status
-        keyInput.value = ''
-        keyInput.placeholder = 'Enter your Gemini API key'
-        providerRow.querySelector('.settings-info-row p')!.textContent = 'No API key is stored.'
-        configurationRow.querySelector('.settings-state')!.textContent = 'Not configured'
-        saveKey.disabled = false
-        recoveryNote?.remove()
+        currentAIStatus = status
         keyStatus.textContent = 'Saved key removed.'
-        setGeminiBusy([saveModel, test, saveKey, removeKey], false)
+        refresh(status)
       })
       .catch((error: unknown) => {
-        keyStatus.textContent =
-          error instanceof Error ? error.message : 'Could not remove the API key.'
-        setGeminiBusy([saveModel, test, saveKey, removeKey], false)
+        keyStatus.textContent = error instanceof Error ? error.message : 'Could not remove API key.'
       })
+      .finally(() => busy(false))
   })
 }
 
@@ -1250,35 +1230,47 @@ function formatGeminiFailureMessage(failure: {
 
 function setGeminiBusy(buttons: HTMLButtonElement[], busy: boolean): void {
   buttons.forEach((button) => {
-    button.disabled =
-      busy || (button.dataset.requiresGeminiKey === 'true' && !currentGeminiStatus.configured)
+    button.disabled = busy || (button.dataset.requiresAIKey === 'true' && !currentAIStatus.configured)
   })
 }
 
 function renderGeminiChat(panel: HTMLElement): void {
   const messages: GeminiChatMessage[] = []
+  const mode = document.createElement('select')
+  mode.id = 'ai-chat-mode'
+  const modes = [
+    { value: 'chat', label: 'Chat' },
+    { value: 'code-assistance', label: 'Code assistance' },
+    { value: 'code-review', label: 'Code review' }
+  ] as const
+  modes.forEach((item) => {
+    const option = document.createElement('option')
+    option.value = item.value
+    option.textContent = item.label
+    mode.append(option)
+  })
   const transcript = document.createElement('div')
   transcript.className = 'gemini-chat-transcript'
   transcript.setAttribute('aria-live', 'polite')
-  transcript.setAttribute('aria-label', 'Conversation with Gemini')
+  transcript.setAttribute('aria-label', `Conversation with ${currentAIStatus.providerLabel}`)
   const controls = document.createElement('div')
   controls.className = 'gemini-chat-controls'
   const input = document.createElement('textarea')
   input.id = 'gemini-chat-input'
   input.rows = 3
   input.maxLength = 8_000
-  input.placeholder = currentGeminiStatus.configured
-    ? 'Ask Gemini a question…'
-    : 'Configure a Gemini API key in API Configuration first.'
-  input.disabled = !currentGeminiStatus.configured
-  input.setAttribute('aria-label', 'Message for Gemini')
+  input.placeholder = currentAIStatus.configured
+    ? 'Ask a question or provide code…'
+    : `Configure a ${currentAIStatus.providerLabel} API key in API Configuration first.`
+  input.disabled = !currentAIStatus.configured
+  input.setAttribute('aria-label', `Message for ${currentAIStatus.providerLabel}`)
   const actions = document.createElement('div')
   actions.className = 'settings-actions'
   const send = document.createElement('button')
   send.type = 'button'
   send.className = 'button button-primary'
   send.textContent = 'Send'
-  send.disabled = !currentGeminiStatus.configured
+  send.disabled = !currentAIStatus.configured
   const reset = document.createElement('button')
   reset.type = 'button'
   reset.className = 'button button-secondary'
@@ -1288,16 +1280,16 @@ function renderGeminiChat(panel: HTMLElement): void {
   status.setAttribute('role', 'status')
   actions.append(send, reset, status)
   controls.append(input, actions)
-  panel.append(createInfoRow('Model', currentGeminiStatus.model), transcript, controls)
+  panel.append(createInfoRow('Provider and model', `${currentAIStatus.providerLabel} · ${currentAIStatus.model}`), mode, transcript, controls)
 
   const renderMessages = (): void => {
     transcript.replaceChildren()
     if (messages.length === 0) {
       const empty = document.createElement('p')
       empty.className = 'gemini-chat-empty'
-      empty.textContent = currentGeminiStatus.configured
-        ? 'Start a conversation with Gemini.'
-        : 'Save a Gemini API key in API Configuration to start chatting.'
+      empty.textContent = currentAIStatus.configured
+        ? `Start a conversation with ${currentAIStatus.providerLabel}.`
+        : 'Save an API key in API Configuration to start chatting.'
       transcript.append(empty)
       return
     }
@@ -1305,7 +1297,7 @@ function renderGeminiChat(panel: HTMLElement): void {
       const bubble = document.createElement('article')
       bubble.className = `gemini-message ${message.role}`
       const author = document.createElement('strong')
-      author.textContent = message.role === 'user' ? 'You' : 'Gemini'
+      author.textContent = message.role === 'user' ? 'You' : currentAIStatus.providerLabel
       const text = document.createElement('p')
       text.textContent = message.text
       bubble.append(author, text)
@@ -1318,7 +1310,7 @@ function renderGeminiChat(panel: HTMLElement): void {
   const submit = async (): Promise<void> => {
     const text = input.value.trim()
     if (sending || !text) return
-    if (!currentGeminiStatus.configured) {
+    if (!currentAIStatus.configured) {
       status.textContent = 'Configure an API key first.'
       return
     }
@@ -1332,13 +1324,16 @@ function renderGeminiChat(panel: HTMLElement): void {
     send.textContent = 'Send'
     await withLoadingState(
       async () => {
-        status.textContent = 'Gemini is responding…'
+        status.textContent = `${currentAIStatus.providerLabel} is responding…`
         const pending = document.createElement('p')
         pending.className = 'gemini-chat-pending'
         pending.textContent = 'Generating response…'
         transcript.append(pending)
         try {
-          const response = await window.api.sendGeminiChat({ messages: requestMessages })
+          const response = await window.api.sendAIChat({
+            messages: requestMessages,
+            mode: mode.value as 'chat' | 'code-assistance' | 'code-review'
+          })
           if (response.success) {
             messages.push({ role: 'assistant', text: response.text })
             status.textContent = ''
@@ -1352,12 +1347,12 @@ function renderGeminiChat(panel: HTMLElement): void {
           messages.pop()
           input.value = text
           status.textContent =
-            error instanceof Error ? error.message : 'Gemini could not complete the request.'
+            error instanceof Error ? error.message : `${currentAIStatus.providerLabel} could not complete the request.`
           void window.api
-            .getGeminiStatus()
-            .then((geminiStatus) => {
-              currentGeminiStatus = geminiStatus
-              if (geminiStatus.credentialState === 'unreadable') {
+            .getAIStatus()
+            .then((aiStatus) => {
+              currentAIStatus = aiStatus
+              if (aiStatus.credentialState === 'unreadable') {
                 input.disabled = true
                 send.disabled = true
                 status.textContent =
@@ -1371,12 +1366,12 @@ function renderGeminiChat(panel: HTMLElement): void {
       },
       (loading) => {
         sending = loading
-        send.disabled = loading || !currentGeminiStatus.configured
+        send.disabled = loading || !currentAIStatus.configured
         reset.disabled = loading
-        input.disabled = loading || !currentGeminiStatus.configured
+        input.disabled = loading || !currentAIStatus.configured
       }
     )
-    if (currentGeminiStatus.configured) input.focus()
+    if (currentAIStatus.configured) input.focus()
   }
   send.addEventListener('click', () => void submit())
   input.addEventListener('keydown', (event: KeyboardEvent) => {
@@ -1398,14 +1393,14 @@ function renderGeminiChat(panel: HTMLElement): void {
 
 async function loadSettingsBootstrap(): Promise<void> {
   try {
-    const [preferences, runtime, geminiStatus] = await Promise.all([
+    const [preferences, runtime, aiStatus] = await Promise.all([
       window.api.getPreferences(),
       window.api.getRuntimeInfo(),
-      window.api.getGeminiStatus()
+      window.api.getAIStatus()
     ])
     currentPreferences = preferences
     currentRuntimeInfo = runtime
-    currentGeminiStatus = geminiStatus
+    currentAIStatus = aiStatus
     document.body.classList.toggle('reduce-motion', preferences.reduceMotion)
     if (preferences.startupPage === 'Settings') openSettings('account')
     renderSettingsSection(activeSettingsSection)

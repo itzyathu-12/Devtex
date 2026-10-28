@@ -2,7 +2,7 @@
 
 **Your dev setup, your rules.**
 
-DEVTEX is a developer-tools ecosystem I'm building to make development easier, faster, and less messy. The idea is to bring useful tools, AI features, and desktop functionality together instead of switching between a bunch of different apps.
+DEVTEX is a developer-tools ecosystem I'm building to make development easier, faster, and less messy. The idea is to bring useful tools, AI features, and desktop functionality together instead of switching between a bunch of different apps.Such tools that will made a developer's stupid life into free and easy..
 
 I'm building DEVTEX to be practical, customizable, and actually useful for developers.
 
@@ -11,6 +11,8 @@ I'm building DEVTEX to be practical, customizable, and actually useful for devel
 DEVTEX is built around making a developer's workflow smoother. Whether you're working on a project, using AI to help with development, or managing your coding workflow, the goal is to keep things simple and accessible.
 
 The project includes a CLI and a desktop application, with more features planned as development continues.
+
+Anyone Who is getting this as toy, Go to hell, just that simple it is. (Aura+999)
 
 ## Features
 
@@ -21,6 +23,7 @@ The project includes a CLI and a desktop application, with more features planned
 - **GitHub integration** — Connect developer workflows with GitHub.
 - **Supabase integration** — Authentication and related backend functionality.
 - **Developer-focused workflow** — Aiming to keep useful tools in one ecosystem.
+- **Devtex-IDE** — 
 
 ## DEVTEX Desktop
 
@@ -91,7 +94,7 @@ This installs the packages defined by the project.
 
 ### 3. Configure environment variables
 
-Create a `.env` file if the project uses one, then add the required configuration.
+Create a `.env` file , then add the required configuration.
 
 For example:
 
@@ -99,6 +102,9 @@ For example:
 GROQ_API_KEY=your_groq_api_key
 GEMINI_API_KEY=your_gemini_api_key
 OPENAI_API_KEY=your_openai_api_key
+VITE_SUPABASE_URL=https://XXXXXXXXXXXXXXXXXXXX.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=your_sb_publishable_key
+GITHUB_OAUTH_CLIENT_ID=your_github_oauthapp_client_id
 ```
 
 Only configure the providers your current code supports. Never upload your real `.env` file to a public repository.
@@ -162,7 +168,7 @@ Keep contributions focused and document any new setup requirements.
 
 ## Project Status
 
-DEVTEX is an ongoing project. Features and integrations may change as development continues, so check the current code and documentation for what is actually available.
+DEVTEX is a developing project. Features and integrations may change as development continues, so check the current code and documentation for what is actually available. i know no one gonna see it , anyways ,I amm writing...
 
 ## Final Note
 

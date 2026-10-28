@@ -1,5 +1,7 @@
 export type StartupPage = 'Dashboard' | 'Settings'
 
+export type AIProviderId = 'gemini' | 'groq' | 'openai'
+
 export type IntegrationState =
   'connected' | 'not-connected' | 'not-configured' | 'testing' | 'error'
 
@@ -20,9 +22,13 @@ export interface AppPreferences {
   reduceMotion: boolean
   startupPage: StartupPage
   geminiModel: string
+  aiProvider: AIProviderId
+  providerModels: Record<AIProviderId, string>
 }
 
 export interface GeminiStatus {
+  provider: AIProviderId
+  providerLabel: string
   configured: boolean
   model: string
   credentialState: GeminiCredentialState
@@ -68,6 +74,7 @@ export interface GeminiChatMessage {
 
 export interface GeminiChatRequest {
   messages: GeminiChatMessage[]
+  mode?: 'chat' | 'code-assistance' | 'code-review'
 }
 
 export type GeminiChatResponse =

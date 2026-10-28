@@ -147,6 +147,8 @@ export class GeminiService {
   async status(): Promise<GeminiStatus> {
     const credentialState = await credentialStore.state()
     return {
+      provider: 'gemini',
+      providerLabel: 'Google Gemini',
       configured: credentialState !== 'missing',
       credentialState,
       model: (await getPreferences()).geminiModel,
@@ -157,7 +159,11 @@ export class GeminiService {
   async setModel(value: unknown): Promise<GeminiStatus> {
     const model = validateGeminiModel(value)
     const preferences = await getPreferences()
-    await savePreferences({ ...preferences, geminiModel: model })
+    await savePreferences({
+      ...preferences,
+      geminiModel: model,
+      providerModels: { ...preferences.providerModels, gemini: model }
+    })
     return this.status()
   }
 

@@ -37,18 +37,21 @@ export class GeminiCredentialStore {
   private readonly storage: SafeStorageAdapter
   private readonly fileSystem: CredentialFileAdapter
   private readonly platform: string
+  private readonly providerLabel: string
   private unreadable = false
 
   constructor(
     credentialPath: string,
     storage: SafeStorageAdapter,
     fileSystem: CredentialFileAdapter,
-    platform: string
+    platform: string,
+    providerLabel = 'Gemini'
   ) {
     this.credentialPath = credentialPath
     this.storage = storage
     this.fileSystem = fileSystem
     this.platform = platform
+    this.providerLabel = providerLabel
   }
 
   getContext(userDataDirectory: string, packaged: boolean): GeminiStorageContext {
@@ -75,7 +78,7 @@ export class GeminiCredentialStore {
       return 'stored'
     } catch (error) {
       if (this.isMissingFile(error)) return 'missing'
-      throw new Error('Could not check the saved Gemini API key.')
+      throw new Error(`Could not check the saved ${this.providerLabel} API key.`)
     }
   }
 
@@ -135,7 +138,10 @@ export class GeminiCredentialStore {
       if (backedUp) {
         await this.fileSystem.rename(backupPath, this.credentialPath).catch(() => undefined)
       }
-      throw new GeminiCredentialError('Could not securely save the Gemini API key.', 'save-failed')
+      throw new GeminiCredentialError(
+        `Could not securely save the ${this.providerLabel} API key.`,
+        'save-failed'
+      )
     }
     if (backedUp) await this.fileSystem.unlink(backupPath).catch(() => undefined)
   }
@@ -146,7 +152,7 @@ export class GeminiCredentialStore {
     } catch (error) {
       if (!this.isMissingFile(error)) {
         throw new GeminiCredentialError(
-          'Could not remove the saved Gemini API key.',
+          `Could not remove the saved ${this.providerLabel} API key.`,
           'remove-failed'
         )
       }
@@ -160,11 +166,11 @@ export class GeminiCredentialStore {
     } catch (error) {
       if (this.isMissingFile(error)) {
         throw new GeminiCredentialError(
-          'Save a Gemini API key in API Configuration first.',
+          `Save a ${this.providerLabel} API key in API Configuration first.`,
           'missing'
         )
       }
-      throw new Error('Could not read the saved Gemini API key.')
+      throw new Error(`Could not read the saved ${this.providerLabel} API key.`)
     }
   }
 
@@ -179,23 +185,23 @@ export class GeminiCredentialStore {
     })()
     if (!syncAvailable || !asyncAvailable) {
       throw new GeminiCredentialError(
-        'Secure credential storage is unavailable. The Gemini API key was not changed.',
+        `Secure credential storage is unavailable. The ${this.providerLabel} API key was not changed.`,
         'unavailable'
       )
     }
     if (this.platform === 'linux' && this.storage.getSelectedStorageBackend() === 'basic_text') {
       throw new GeminiCredentialError(
-        'Gemini key storage is disabled because no secure Linux keyring is configured.',
+        `${this.providerLabel} key storage is disabled because no secure Linux keyring is configured.`,
         'unavailable'
       )
     }
   }
 
   private validateApiKey(value: string): string {
-    if (typeof value !== 'string') throw new Error('Enter a valid Gemini API key.')
+    if (typeof value !== 'string') throw new Error(`Enter a valid ${this.providerLabel} API key.`)
     const key = value.trim()
     if (key.length < 20 || key.length > 256 || /\s/.test(key)) {
-      throw new Error('The Gemini API key format is invalid.')
+      throw new Error(`The ${this.providerLabel} API key format is invalid.`)
     }
     return key
   }
@@ -210,7 +216,7 @@ export class GeminiCredentialStore {
 
   private unreadableError(): GeminiCredentialError {
     return new GeminiCredentialError(
-      'The saved Gemini API key is unreadable in this app data directory or encryption context. Remove it with confirmation, then enter and save the key again.',
+      `The saved ${this.providerLabel} API key is unreadable in this app data directory or encryption context. Remove it with confirmation, then enter and save the key again.`,
       'unreadable'
     )
   }

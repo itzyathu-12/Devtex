@@ -9,6 +9,7 @@ import type { AppPreferences, AppRuntimeInfo } from '../shared/settings'
 import type {
   GeminiChatRequest,
   GeminiChatResponse,
+  AIProviderId,
   GeminiStatus,
   GeminiTestResult
 } from '../shared/settings'
@@ -31,14 +32,15 @@ const api = {
   getPreferences: (): Promise<AppPreferences> => ipcRenderer.invoke('settings:get-preferences'),
   savePreferences: (preferences: AppPreferences): Promise<AppPreferences> =>
     ipcRenderer.invoke('settings:save-preferences', preferences),
-  getGeminiStatus: (): Promise<GeminiStatus> => ipcRenderer.invoke('gemini:status'),
-  saveGeminiKey: (key: string): Promise<GeminiStatus> => ipcRenderer.invoke('gemini:save-key', key),
-  removeGeminiKey: (): Promise<GeminiStatus> => ipcRenderer.invoke('gemini:remove-key'),
-  setGeminiModel: (model: string): Promise<GeminiStatus> =>
-    ipcRenderer.invoke('gemini:set-model', model),
-  testGeminiConnection: (): Promise<GeminiTestResult> => ipcRenderer.invoke('gemini:test'),
-  sendGeminiChat: (request: GeminiChatRequest): Promise<GeminiChatResponse> =>
-    ipcRenderer.invoke('gemini:chat', request),
+  getAIStatus: (): Promise<GeminiStatus> => ipcRenderer.invoke('ai:status'),
+  setAIProvider: (provider: AIProviderId): Promise<GeminiStatus> =>
+    ipcRenderer.invoke('ai:set-provider', provider),
+  saveAIKey: (key: string): Promise<GeminiStatus> => ipcRenderer.invoke('ai:save-key', key),
+  removeAIKey: (): Promise<GeminiStatus> => ipcRenderer.invoke('ai:remove-key'),
+  setAIModel: (model: string): Promise<GeminiStatus> => ipcRenderer.invoke('ai:set-model', model),
+  testAIConnection: (): Promise<GeminiTestResult> => ipcRenderer.invoke('ai:test'),
+  sendAIChat: (request: GeminiChatRequest): Promise<GeminiChatResponse> =>
+    ipcRenderer.invoke('ai:chat', request),
   disconnectGitHubRepositories: (): Promise<GitHubConnectionStatus> =>
     ipcRenderer.invoke('github:disconnect'),
   openGitHubRepository: (url: string): Promise<void> =>
