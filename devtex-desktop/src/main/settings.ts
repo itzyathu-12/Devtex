@@ -19,7 +19,7 @@ const validProviders: AIProviderId[] = ['gemini', 'groq', 'openai']
 
 export const defaultProviderModels: Record<AIProviderId, string> = {
   gemini: 'gemini-2.5-flash-lite',
-  groq: 'llama-3.3-70b-versatile',
+  groq: 'openai/gpt-oss-20b',
   openai: 'gpt-4o-mini'
 }
 
@@ -40,7 +40,14 @@ function isValidGeminiModel(value: unknown): value is string {
 }
 
 function isValidProviderModel(value: unknown): value is string {
-  return typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,119}$/.test(value.trim())
+  if (typeof value !== 'string') return false
+
+  const model = value.trim()
+
+  return (
+    model.length <= 120 &&
+    /^[A-Za-z0-9][A-Za-z0-9._:-]*(?:\/[A-Za-z0-9][A-Za-z0-9._:-]*)*$/.test(model)
+  )
 }
 
 function isAIProviderId(value: unknown): value is AIProviderId {
