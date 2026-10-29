@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://avatars.githubusercontent.com; connect-src 'self' https://kdmifuuwifhuuqkfnyzn.supabase.co"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://avatars.githubusercontent.com https://*.githubusercontent.com https://github.com; connect-src 'self' https://kdmifuuwifhuuqkfnyzn.supabase.co"
     />
     <meta name="theme-color" content="#090b10" />
     <title>DEVTEX — Developer Workspace</title>
@@ -16,7 +16,7 @@
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand">
-          <div class="brand-mark">D<span>.</span></div>
+          <img class="brand-logo" src="./assets/logo.png" alt="DEVTEX" />
           <div>
             <div class="brand-name">DEVTEX</div>
             <div class="brand-caption">DEVELOPER WORKSPACE</div>
@@ -31,6 +31,9 @@
           <button class="nav-item" data-page="Projects">
             <span class="nav-icon">▧</span> Projects
           </button>
+          <button class="nav-item" data-page="AI Chat">
+            <span class="nav-icon">✦</span> AI Chat
+          </button>
           <button class="nav-item" data-page="Testing Engine">
             <span class="nav-icon">⌘</span> Testing Engine
             <span class="nav-count">BETA</span>
@@ -42,6 +45,9 @@
 
         <div class="nav-label tools-label">TOOLS</div>
         <nav class="navigation">
+          <button class="nav-item" data-page="Profile">
+            <span class="nav-icon">👤</span> Profile
+          </button>
           <button class="nav-item" data-page="Settings">
             <span class="nav-icon">⚙</span> Settings
           </button>
@@ -79,7 +85,10 @@
                 aria-expanded="false"
                 aria-controls="profile-menu"
               >
-                D
+                <svg class="avatar-fallback-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
               </button>
               <div
                 class="profile-menu"
@@ -95,13 +104,19 @@
                   </div>
                 </div>
                 <div class="profile-menu-divider" role="separator"></div>
+                <button type="button" role="menuitem" id="menu-view-profile">
+                  👤 Developer Profile
+                </button>
+                <button type="button" role="menuitem" id="menu-open-chat">
+                  ✦ AI Chat
+                </button>
+                <div class="profile-menu-divider" role="separator"></div>
                 <button type="button" role="menuitem" data-setting-section="account">
                   Account
                 </button>
                 <button type="button" role="menuitem" data-setting-section="api">
                   API Configuration
                 </button>
-                <button type="button" role="menuitem" data-setting-section="chat">AI Chat</button>
                 <button type="button" role="menuitem" data-setting-section="runtime">
                   Environment &amp; Runtime
                 </button>
@@ -206,7 +221,9 @@
                 <div class="engine-graphic">
                   <div class="engine-orbit orbit-one"></div>
                   <div class="engine-orbit orbit-two"></div>
-                  <div class="engine-core">D<span>.</span></div>
+                  <div class="engine-core">
+                    <img class="engine-logo" src="./assets/logo.png" alt="DEVTEX" />
+                  </div>
                 </div>
 
                 <h3 class="engine-title">Ready when you are.</h3>
@@ -293,12 +310,6 @@
               </div>
             </section>
 
-            <footer class="footer">
-              <span> DEVTEX <span class="footer-dot">●</span> Built for developers. </span>
-              <span class="electron-version"></span>
-              <span class="chrome-version"></span>
-              <span class="node-version"></span>
-            </footer>
           </div>
 
           <section class="settings-view" id="settings-view" aria-labelledby="settings-title" hidden>
@@ -315,7 +326,6 @@
               <nav class="settings-navigation" aria-label="Settings sections">
                 <button type="button" data-setting-section="account">Account</button>
                 <button type="button" data-setting-section="api">API Configuration</button>
-                <button type="button" data-setting-section="chat">AI Chat</button>
                 <button type="button" data-setting-section="runtime">
                   Environment &amp; Runtime
                 </button>
@@ -329,6 +339,46 @@
               <div class="settings-panel panel" id="settings-panel" aria-live="polite"></div>
             </div>
           </section>
+
+          <section class="ai-chat-view" id="ai-chat-view" aria-labelledby="ai-chat-title" hidden>
+            <header class="settings-heading">
+              <div>
+                <div class="eyebrow">INTELLIGENT WORKSPACE ASSISTANT</div>
+                <h1 id="ai-chat-title">AI Chat &amp; Project Explorer</h1>
+                <p class="subtitle" id="ai-chat-description">
+                  Chat, get code assistance, or explore project files with your configured AI provider.
+                </p>
+              </div>
+            </header>
+            <div class="panel ai-chat-panel" id="ai-chat-container"></div>
+          </section>
+
+          <section class="profile-view" id="profile-view" aria-labelledby="profile-title" hidden>
+            <header class="settings-heading">
+              <div>
+                <div class="eyebrow">DEVELOPER IDENTITY &amp; ACCOUNTS</div>
+                <h1 id="profile-title">Developer Profile</h1>
+                <p class="subtitle" id="profile-description">
+                  Your connected GitHub profile, repositories, and workspace identity.
+                </p>
+              </div>
+            </header>
+            <div class="profile-layout" id="profile-layout"></div>
+          </section>
+
+          <footer class="footer">
+            <div class="footer-left">
+              <span class="footer-brand">DEVTEX</span>
+              <span class="footer-dot">●</span>
+              <span class="footer-text">Made by <strong>Yatharth</strong> (<a href="https://github.com/itzyathu_12" id="footer-author-link" class="footer-link">itzyathu_12</a>)</span>
+            </div>
+            <div class="footer-right">
+              <span class="footer-badge"><span class="footer-status-dot"></span> Ready</span>
+              <span class="electron-version"></span>
+              <span class="chrome-version"></span>
+              <span class="node-version"></span>
+            </div>
+          </footer>
         </section>
       </main>
     </div>
@@ -340,7 +390,9 @@
           ×
         </button>
 
-        <div class="brand-mark auth-logo">D<span>.</span></div>
+        <div class="auth-logo-wrap">
+          <img class="auth-logo-img" src="./assets/logo.png" alt="DEVTEX" />
+        </div>
 
         <h2 id="auth-title">Welcome to DEVTEX</h2>
         <p class="auth-description">Sign in to your developer workspace.</p>

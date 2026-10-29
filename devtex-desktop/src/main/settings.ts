@@ -15,7 +15,7 @@ declare const __SUPABASE_KEY_STATUS__: ConfigurationValueStatus
 declare const __GITHUB_OAUTH_CLIENT_STATUS__: ConfigurationValueStatus
 
 const preferencesPath = join(app.getPath('userData'), 'preferences.json')
-const startupPages: StartupPage[] = ['Dashboard', 'Settings']
+const startupPages: StartupPage[] = ['Dashboard', 'Settings', 'AI Chat', 'Profile']
 const validProviders: AIProviderId[] = ['gemini', 'groq', 'openai']
 
 export const defaultProviderModels: Record<AIProviderId, string> = {

@@ -135,8 +135,12 @@ async function collectFiles(
 
   return collected
 }
-
-export async function inspectProject(projectPath: string, query?: string): Promise<string> {
+// this is of chat
+export async function inspectProject(
+  projectPath: string,
+  query?: string,
+  maxContextLength = 4_500
+): Promise<string> {
   let dirStat
   try {
     dirStat = await stat(projectPath)
@@ -184,17 +188,25 @@ export async function inspectProject(projectPath: string, query?: string): Promi
   for (const p of [...matches, ...keyCandidates, ...others]) {
     if (!selectedRelPaths.includes(p)) {
       selectedRelPaths.push(p)
-      if (selectedRelPaths.length >= 6) break
+      if (selectedRelPaths.length >= 5) break
     }
   }
+
+  const maxTreeCount = Math.min(30, allFiles.length)
+  const treeDisplay = allFiles.slice(0, maxTreeCount).map((f) => `  - ${f}`).join('\n')
+  const moreTree = allFiles.length > maxTreeCount ? `\n  ... and ${allFiles.length - maxTreeCount} more files` : ''
+
+  const headerEst = 300 + treeDisplay.length
+  const remainingBudget = Math.max(800, maxContextLength - headerEst)
+  const perFileBudget = Math.max(350, Math.floor(remainingBudget / Math.max(1, selectedRelPaths.length)))
 
   const fileContents: Array<{ path: string; content: string }> = []
   for (const relPath of selectedRelPaths) {
     const fullPath = join(projectPath, relPath)
     try {
       const raw = await readFile(fullPath, 'utf8')
-      const truncated = raw.length > 3_500
-        ? raw.slice(0, 3_500) + '\n[... remaining content omitted ...]'
+      const truncated = raw.length > perFileBudget
+        ? raw.slice(0, perFileBudget) + '\n[... content truncated ...]'
         : raw
       fileContents.push({ path: relPath, content: truncated })
     } catch {
@@ -202,18 +214,20 @@ export async function inspectProject(projectPath: string, query?: string): Promi
     }
   }
 
-  const treeDisplay = allFiles.slice(0, 60).map((f) => `  - ${f}`).join('\n')
-  const moreTree = allFiles.length > 60 ? `\n  ... and ${allFiles.length - 60} more files` : ''
-
   const filesSection = fileContents
     .map((fc) => `--- File: ${fc.path} ---\n${fc.content}\n--- End of ${fc.path} ---`)
     .join('\n\n')
 
-  return `[Project Inspection: ${projectName}]
+  const result = `[Project Inspection: ${projectName}]
 Location: ${projectPath}
 File Structure Overview:
 ${treeDisplay}${moreTree}
 
 Relevant File Contents:
 ${filesSection}`
+
+  if (result.length > maxContextLength) {
+    return result.slice(0, maxContextLength - 40) + '\n[... remaining context truncated ...]'
+  }
+  return result
 }

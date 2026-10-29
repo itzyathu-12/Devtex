@@ -1,4 +1,4 @@
-export type StartupPage = 'Dashboard' | 'Settings'
+export type StartupPage = 'Dashboard' | 'Settings' | 'AI Chat' | 'Profile'
 
 export type AIProviderId = 'gemini' | 'groq' | 'openai'
 

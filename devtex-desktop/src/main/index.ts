@@ -1,8 +1,8 @@
 import { app, shell, BrowserWindow, ipcMain, type IpcMainInvokeEvent } from 'electron'
-import { join } from 'path'
+import { join, basename } from 'path'
 // Replaced @electron-toolkit utils with minimal stubs
-const electronApp = { setAppUserModelId: (_id: string) => {} } as const;
-const optimizer = { watchWindowShortcuts: (_window: any) => {} } as const;
+const electronApp = { setAppUserModelId: (_id: string) => { } } as const;
+const optimizer = { watchWindowShortcuts: (_window: any) => { } } as const;
 const is = { dev: process.env.NODE_ENV !== 'production' } as const;
 // const { electronApp, optimizer, is } = require('@electron-toolkit/utils');
 import icon from '../../resources/icon.png?asset'
@@ -19,7 +19,7 @@ import {
 } from './settings'
 import { chooseProjectFolder, inspectProject } from './project-inspector'
 import type { GitHubConnectionStatus } from '../shared/github'
-import type { WorkspaceProject, GeminiChatRequest } from '../shared/settings'
+import type { WorkspaceProject, GeminiChatRequest, GeminiChatMessage } from '../shared/settings'
 
 declare const __GITHUB_OAUTH_CLIENT_ID__: string
 
@@ -218,21 +218,26 @@ ipcMain.handle('ai:chat', async (event, value: unknown) => {
   ) {
     const rawReq = value as GeminiChatRequest;
     const projectPath = rawReq.projectPath!.trim();
-    const lastUserMessage = [...rawReq.messages].reverse().find((m) => m.role === 'user');
-    try {
-      const projectContext = await inspectProject(projectPath, lastUserMessage?.text);
-      const enrichedMessages = rawReq.messages.map((m, idx, arr) => {
-        if (idx === arr.length - 1 && m.role === 'user') {
-          return {
-            role: m.role,
-            text: `${projectContext}\n\n[Developer Question]\n${m.text}`
-          };
+    if (Array.isArray(rawReq.messages) && rawReq.messages.length > 0) {
+      const lastUserIdx = rawReq.messages.map((m) => m.role).lastIndexOf('user');
+      const lastUserMessage = lastUserIdx !== -1 ? rawReq.messages[lastUserIdx] : undefined;
+      if (lastUserMessage && lastUserMessage.text) {
+        try {
+          const userText = lastUserMessage.text.trim();
+          // Leave room for user question and wrapper so total message stays under 8,000 chars
+          const contextBudget = Math.max(1200, Math.min(4500, 7500 - userText.length));
+          const projectContext = await inspectProject(projectPath, userText, contextBudget);
+          const projectName = basename(projectPath) || 'project';
+          const enrichedUserText = `[Project Context: ${projectName}]\n${projectContext}\n\n[User Question]\n${userText}`.slice(0, 7800);
+
+          const enrichedMessages: GeminiChatMessage[] = rawReq.messages.map((m, idx) =>
+            idx === lastUserIdx ? { ...m, text: enrichedUserText } : m
+          );
+          requestValue = { ...rawReq, messages: enrichedMessages };
+        } catch (error) {
+          console.warn('[Project inspection notice]', error);
         }
-        return m;
-      });
-      requestValue = { ...rawReq, messages: enrichedMessages };
-    } catch (error) {
-      console.warn('[Project inspection notice]', error);
+      }
     }
   }
   const provider = await getCurrentAIProvider();

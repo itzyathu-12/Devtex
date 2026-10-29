@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import type { GitHubConnectionStatus, GitHubRepository } from '../../shared/github'
+import type { GitHubConnectionStatus, GitHubProfile, GitHubRepository } from '../../shared/github'
 import type {
   AppPreferences,
   AppRuntimeInfo,
@@ -13,6 +13,7 @@ import type {
 import { withLoadingState } from '../../shared/async-state'
 
 let activeAIProjectPath: string | null = null
+const activeChatMessages: GeminiChatMessage[] = []
 
 const settingsTitles: Record<SettingsSection, string> = {
   account: 'Account',
@@ -34,9 +35,12 @@ const settingsDescriptions: Record<SettingsSection, string> = {
   diagnostics: 'Review safe runtime and integration diagnostics.',
   about: 'Application version and runtime details.'
 }
-type WorkspacePage = StartupPage | 'Projects' | 'Testing Engine' | 'Reports'
+type WorkspacePage = StartupPage | 'Projects' | 'Testing Engine' | 'Reports' | 'AI Chat' | 'Profile'
 let currentAccountEmail: string | null = null
 let currentGitHubStatus: GitHubConnectionStatus = { connected: false, connecting: false }
+let currentGitHubProfile: GitHubProfile | null = null
+let currentGitHubRepositories: GitHubRepository[] = []
+let activeWorkspacePage: WorkspacePage = 'Dashboard'
 let currentRuntimeInfo: AppRuntimeInfo | null = null
 let currentPreferences: AppPreferences = {
   reduceMotion: false,
@@ -121,6 +125,11 @@ function showVersions(): void {
   replaceText('.electron-version', `Electron v${versions.electron}`)
   replaceText('.chrome-version', `Chromium v${versions.chrome}`)
   replaceText('.node-version', `Node v${versions.node}`)
+
+  document.getElementById('footer-author-link')?.addEventListener('click', (event) => {
+    event.preventDefault()
+    void window.api.openExternal('https://github.com/itzyathu_12')
+  })
 }
 
 function replaceText(selector: string, text: string): void {
@@ -160,8 +169,10 @@ function setupNavigation(): void {
   const descriptions: Record<string, string> = {
     Dashboard: 'Build, test, and improve your software from one workspace.',
     Projects: 'Manage the projects you add to your workspace.',
+    'AI Chat': 'Chat, explore local projects, and review code with AI.',
     'Testing Engine': 'Explore the future of automated software testing.',
     Reports: 'Review testing results as the engine becomes available.',
+    Profile: 'View your connected GitHub profile and repositories.',
     Settings: 'Your DEVTEX workspace preferences.'
   }
 
@@ -182,12 +193,15 @@ function setupNavigation(): void {
 }
 
 function showPage(page: WorkspacePage, description = ''): void {
+  activeWorkspacePage = page
   const buttons = document.querySelectorAll<HTMLButtonElement>('.nav-item')
   const breadcrumb = document.getElementById('breadcrumb-page')
   const title = document.getElementById('page-title')
   const subtitle = document.getElementById('page-subtitle')
   const dashboard = document.getElementById('dashboard-view')
   const settings = document.getElementById('settings-view')
+  const aiChatView = document.getElementById('ai-chat-view')
+  const profileView = document.getElementById('profile-view')
 
   buttons.forEach((button) => button.classList.toggle('active', button.dataset.page === page))
   if (breadcrumb) breadcrumb.textContent = page
@@ -196,8 +210,18 @@ function showPage(page: WorkspacePage, description = ''): void {
     if (page === 'Dashboard') title.innerHTML = 'Welcome to <span>DEVTEX.</span>'
   }
   if (subtitle) subtitle.textContent = description
-  if (dashboard) dashboard.hidden = page === 'Settings'
+
+  const isDashboard = page === 'Dashboard' || page === 'Projects' || page === 'Testing Engine' || page === 'Reports'
+  if (dashboard) dashboard.hidden = !isDashboard
   if (settings) settings.hidden = page !== 'Settings'
+  if (aiChatView) aiChatView.hidden = page !== 'AI Chat'
+  if (profileView) profileView.hidden = page !== 'Profile'
+
+  if (page === 'AI Chat') {
+    renderAIChatPage()
+  } else if (page === 'Profile') {
+    renderProfilePage()
+  }
 }
 
 function setupProjects(): void {
@@ -273,7 +297,7 @@ function setupProjects(): void {
       exploreBtn.addEventListener('click', (e) => {
         e.stopPropagation()
         activeAIProjectPath = project.path
-        openSettings('chat')
+        showPage('AI Chat', 'Chat, explore local projects, and review code with AI.')
       })
 
       const removeBtn = document.createElement('button')
@@ -482,16 +506,40 @@ function setupGitHubRepositories(): void {
         ...(result.message ? { message: result.message } : {})
       }
       repositories = result.repositories
+      currentGitHubRepositories = result.repositories
+      if (result.connected) {
+        try {
+          currentGitHubProfile = await window.api.getGitHubProfile()
+        } catch {
+          currentGitHubProfile = null
+        }
+      } else {
+        currentGitHubProfile = null
+      }
+      updateAvatarUI()
+      updateProfileMenuIdentity()
+      if (activeWorkspacePage === 'Profile') {
+        renderProfilePage()
+      }
       setMessage(
         result.connected
           ? result.repositories.length === 0
             ? 'No repositories were returned by GitHub.'
-            : `Showing repositories available to @${result.username}.`
+            : `Showing repositories available to @${currentGitHubProfile?.username ?? result.username}.`
           : result.message || 'Connect GitHub to list accessible repositories.',
         result.connected && result.repositories.length > 0 ? 'success' : ''
       )
     } catch (error) {
       repositories = []
+      currentGitHubRepositories = []
+      currentGitHubProfile = null
+      connection = { connected: false, connecting: false }
+      currentGitHubStatus = { connected: false, connecting: false }
+      updateAvatarUI()
+      updateProfileMenuIdentity()
+      if (activeWorkspacePage === 'Profile') {
+        renderProfilePage()
+      }
       setMessage(
         error instanceof Error ? error.message : 'Could not load GitHub repositories.',
         'error'
@@ -503,7 +551,11 @@ function setupGitHubRepositories(): void {
   }
 
   connectButton?.addEventListener('click', () => {
-    if (connection.connected || connection.connecting) return
+    if (connection.connected) {
+      showPage('Profile', 'View your connected GitHub profile and repositories.')
+      return
+    }
+    if (connection.connecting) return
     connection = { connected: false, connecting: true }
     setMessage('GitHub will open in your browser. Follow the one-time authorization prompt.')
     renderRepositories()
@@ -511,11 +563,19 @@ function setupGitHubRepositories(): void {
       .connectGitHubRepositories()
       .then((status) => {
         connection = status
-        setMessage(status.message || 'Waiting for GitHub authorization.')
+        currentGitHubStatus = status
+        setMessage(
+          status.message ||
+            (status.connected
+              ? `Connected as @${status.username}.`
+              : 'Waiting for GitHub authorization.')
+        )
         renderRepositories()
+        if (status.connected) void loadRepositories()
       })
       .catch((error: unknown) => {
         connection = { connected: false, connecting: false }
+        currentGitHubStatus = { connected: false, connecting: false }
         setMessage(error instanceof Error ? error.message : 'Could not connect to GitHub.', 'error')
         renderRepositories()
       })
@@ -531,7 +591,13 @@ function setupGitHubRepositories(): void {
       .disconnectGitHubRepositories()
       .then((status) => {
         connection = status
+        currentGitHubStatus = status
         repositories = []
+        currentGitHubRepositories = []
+        currentGitHubProfile = null
+        updateAvatarUI()
+        updateProfileMenuIdentity()
+        if (activeWorkspacePage === 'Profile') renderProfilePage()
         setMessage('GitHub credential removed from this device.')
         renderRepositories()
       })
@@ -542,7 +608,15 @@ function setupGitHubRepositories(): void {
 
   window.api.onGitHubConnectionChanged((status) => {
     connection = status
-    if (!status.connected) repositories = []
+    currentGitHubStatus = status
+    if (!status.connected) {
+      repositories = []
+      currentGitHubRepositories = []
+      currentGitHubProfile = null
+      updateAvatarUI()
+      updateProfileMenuIdentity()
+      if (activeWorkspacePage === 'Profile') renderProfilePage()
+    }
     setMessage(status.message || (status.connected ? `Connected as @${status.username}.` : ''))
     renderRepositories()
     if (status.connected) void loadRepositories()
@@ -557,7 +631,6 @@ function setupAuthentication(): void {
   const closeButton = document.getElementById('close-auth')
   const googleButton = document.getElementById('google-sign-in')
   const githubButton = document.getElementById('github-sign-in')
-  const avatar = document.getElementById('user-avatar')
   const authFootnote = document.querySelector<HTMLElement>('.auth-footnote')
 
   function showAuthMessage(message: string): void {
@@ -639,11 +712,11 @@ function setupAuthentication(): void {
     currentAccountEmail = email || null
     const signedIn = Boolean(email)
     if (signInButton) signInButton.textContent = signedIn ? 'Sign out' : 'Sign in'
-    if (avatar) {
-      avatar.textContent = email?.charAt(0).toUpperCase() || 'D'
-      avatar.title = email || 'DEVTEX account'
-    }
+    updateAvatarUI()
     updateProfileMenuIdentity()
+    if (activeWorkspacePage === 'Profile') {
+      renderProfilePage()
+    }
     if (
       activeSettingsSection === 'account' ||
       activeSettingsSection === 'integrations' ||
@@ -710,11 +783,46 @@ function setupAuthentication(): void {
 
 init()
 
+function updateAvatarUI(): void {
+  const avatar = document.getElementById('user-avatar')
+  if (!avatar) return
+  if (currentGitHubProfile?.avatarUrl) {
+    avatar.replaceChildren()
+    const img = document.createElement('img')
+    img.className = 'avatar-img'
+    img.src = currentGitHubProfile.avatarUrl
+    img.alt = `@${currentGitHubProfile.username}`
+    avatar.append(img)
+    avatar.title = currentGitHubProfile.displayName
+      ? `${currentGitHubProfile.displayName} (@${currentGitHubProfile.username})`
+      : `@${currentGitHubProfile.username}`
+  } else if (currentAccountEmail) {
+    avatar.replaceChildren()
+    avatar.textContent = currentAccountEmail.charAt(0).toUpperCase()
+    avatar.title = currentAccountEmail
+  } else {
+    avatar.replaceChildren()
+    avatar.innerHTML = `<svg class="avatar-fallback-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`
+    avatar.title = 'Developer Profile & Settings'
+  }
+}
+
 function updateProfileMenuIdentity(): void {
   const identity = document.getElementById('profile-menu-identity')
   const status = document.getElementById('profile-menu-status')
-  if (identity) identity.textContent = currentAccountEmail || 'Signed out'
-  if (status) status.textContent = currentAccountEmail ? 'Supabase account' : 'No Supabase session'
+  if (currentGitHubProfile) {
+    if (identity) {
+      identity.textContent = currentGitHubProfile.displayName
+        ? `${currentGitHubProfile.displayName} (@${currentGitHubProfile.username})`
+        : `@${currentGitHubProfile.username}`
+    }
+    if (status) {
+      status.textContent = `GitHub connected · ${currentGitHubRepositories.length} repos available`
+    }
+  } else {
+    if (identity) identity.textContent = currentAccountEmail || 'Signed out'
+    if (status) status.textContent = currentAccountEmail ? 'Supabase account' : 'No account connected'
+  }
 }
 
 function setupProfileMenu(): void {
@@ -722,6 +830,7 @@ function setupProfileMenu(): void {
   const menu = document.getElementById('profile-menu')
   const control = document.querySelector('.profile-control')
   if (!trigger || !menu || !control) return
+  updateAvatarUI()
   updateProfileMenuIdentity()
 
   const items = (): HTMLButtonElement[] =>
@@ -741,6 +850,16 @@ function setupProfileMenu(): void {
     if (menu.hidden) openMenu()
     else closeMenu()
   })
+
+  document.getElementById('menu-view-profile')?.addEventListener('click', () => {
+    showPage('Profile', 'View your connected GitHub profile and repositories.')
+    closeMenu()
+  })
+  document.getElementById('menu-open-chat')?.addEventListener('click', () => {
+    showPage('AI Chat', 'Chat, explore local projects, and review code with AI.')
+    closeMenu()
+  })
+
   menu.addEventListener('click', (event: MouseEvent) => {
     const target = event.target
     if (!(target instanceof HTMLButtonElement)) return
@@ -860,7 +979,7 @@ function renderSettingsSection(section: SettingsSection): void {
   }
 
   if (section === 'chat') {
-    renderGeminiChat(panel)
+    showPage('AI Chat', 'Chat, explore local projects, and review code with AI.')
     return
   }
 
@@ -999,7 +1118,7 @@ function renderPreferences(panel: HTMLElement): void {
   pageLabel.textContent = 'Startup page'
   const pageSelect = document.createElement('select')
   pageSelect.id = 'startup-page'
-  const pages: StartupPage[] = ['Dashboard', 'Settings']
+  const pages: StartupPage[] = ['Dashboard', 'AI Chat', 'Profile', 'Settings']
   pages.forEach((page) => {
     const option = document.createElement('option')
     option.value = page
@@ -1280,7 +1399,7 @@ function formatGeminiFailureMessage(failure: {
 }
 
 function renderGeminiChat(panel: HTMLElement): void {
-  const messages: GeminiChatMessage[] = []
+  const messages = activeChatMessages
   const mode = document.createElement('select')
   mode.id = 'ai-chat-mode'
   const modes = [
@@ -1359,17 +1478,17 @@ function renderGeminiChat(panel: HTMLElement): void {
   input.rows = 3
   input.maxLength = 8_000
   input.placeholder = currentAIStatus.configured
-    ? 'Ask a question or explore your project files…'
+    ? 'Ask a question or explore your project files… (Enter to send, Shift+Enter for newline)'
     : `Configure a ${currentAIStatus.providerLabel} API key in API Configuration first.`
-  input.disabled = !currentAIStatus.configured
+  input.disabled = false
   input.setAttribute('aria-label', `Message for ${currentAIStatus.providerLabel}`)
   const actions = document.createElement('div')
-  actions.className = 'settings-actions'
+  actions.className = 'settings-actions gemini-chat-actions'
   const send = document.createElement('button')
   send.type = 'button'
   send.className = 'button button-primary'
   send.textContent = 'Send'
-  send.disabled = !currentAIStatus.configured
+  send.disabled = false
   const reset = document.createElement('button')
   reset.type = 'button'
   reset.className = 'button button-secondary'
@@ -1377,10 +1496,39 @@ function renderGeminiChat(panel: HTMLElement): void {
   const status = document.createElement('span')
   status.className = 'settings-save-status'
   status.setAttribute('role', 'status')
-  actions.append(send, reset, status)
+
+  actions.append(status, reset, send)
   controls.append(input, actions)
+  const topBar = document.createElement('div')
+  topBar.style.display = 'flex'
+  topBar.style.justifyContent = 'space-between'
+  topBar.style.alignItems = 'center'
+  topBar.style.flexWrap = 'wrap'
+  topBar.style.gap = '8px'
+  topBar.style.margin = '4px 0 10px'
+
+  const infoRow = createInfoRow('Provider and model', `${currentAIStatus.providerLabel} · ${currentAIStatus.model}`)
+  infoRow.style.flex = '1'
+  infoRow.style.minWidth = '220px'
+  infoRow.style.borderBottom = 'none'
+  infoRow.style.padding = '0'
+
+  const configBtn = document.createElement('button')
+  configBtn.type = 'button'
+  configBtn.className = 'button button-secondary'
+  configBtn.textContent = 'Configure Provider ⚙'
+  configBtn.style.padding = '5px 12px'
+  configBtn.style.fontSize = '10px'
+  configBtn.style.minHeight = '30px'
+  configBtn.addEventListener('click', () => {
+    openSettings('api')
+  })
+
+  topBar.append(infoRow, configBtn)
+
+  panel.replaceChildren()
   panel.append(
-    createInfoRow('Provider and model', `${currentAIStatus.providerLabel} · ${currentAIStatus.model}`),
+    topBar,
     controlsRow,
     transcript,
     controls
@@ -1415,7 +1563,7 @@ function renderGeminiChat(panel: HTMLElement): void {
     const text = input.value.trim()
     if (sending || !text) return
     if (!currentAIStatus.configured) {
-      status.textContent = 'Configure an API key first.'
+      status.textContent = `Configure a ${currentAIStatus.providerLabel} API key in Settings > API Configuration first.`
       return
     }
     if (messages.length >= 20) messages.splice(0, 2)
@@ -1476,12 +1624,12 @@ function renderGeminiChat(panel: HTMLElement): void {
       },
       (loading) => {
         sending = loading
-        send.disabled = loading || !currentAIStatus.configured
+        send.disabled = loading
         reset.disabled = loading
-        input.disabled = loading || !currentAIStatus.configured
+        input.disabled = loading
       }
     )
-    if (currentAIStatus.configured) input.focus()
+    input.focus()
   }
   send.addEventListener('click', () => void submit())
   input.addEventListener('keydown', (event: KeyboardEvent) => {
@@ -1501,6 +1649,269 @@ function renderGeminiChat(panel: HTMLElement): void {
   renderMessages()
 }
 
+function renderAIChatPage(): void {
+  const container = document.getElementById('ai-chat-container')
+  if (!container) return
+  renderGeminiChat(container)
+}
+
+function renderProfilePage(): void {
+  const container = document.getElementById('profile-layout')
+  if (!container) return
+  container.replaceChildren()
+
+  if (currentGitHubStatus.connected && currentGitHubProfile) {
+    const profile = currentGitHubProfile
+
+    // 1. Header Card
+    const headerCard = document.createElement('div')
+    headerCard.className = 'profile-header-card'
+
+    if (profile.avatarUrl) {
+      const avatarImg = document.createElement('img')
+      avatarImg.className = 'profile-big-avatar'
+      avatarImg.src = profile.avatarUrl
+      avatarImg.alt = `@${profile.username}`
+      headerCard.append(avatarImg)
+    } else {
+      const avatarFallback = document.createElement('div')
+      avatarFallback.className = 'profile-big-avatar'
+      avatarFallback.textContent = profile.username.charAt(0).toUpperCase()
+      headerCard.append(avatarFallback)
+    }
+
+    const userInfo = document.createElement('div')
+    userInfo.className = 'profile-user-info'
+
+    const name = document.createElement('h2')
+    name.textContent = profile.displayName || profile.username
+
+    const handle = document.createElement('a')
+    handle.className = 'profile-user-handle'
+    handle.href = profile.profileUrl
+    handle.textContent = `@${profile.username} ↗`
+    handle.title = 'Open GitHub Profile in browser'
+    handle.addEventListener('click', (e) => {
+      e.preventDefault()
+      void window.api.openExternal(profile.profileUrl)
+    })
+
+    const bio = document.createElement('p')
+    bio.className = 'profile-bio'
+    bio.textContent = profile.bio || 'DEVTEX Workspace Developer'
+
+    const badges = document.createElement('div')
+    badges.className = 'profile-badges'
+
+    const reposBadge = document.createElement('span')
+    reposBadge.className = 'profile-badge'
+    reposBadge.textContent = `▧ ${currentGitHubRepositories.length} Available Repositories (${profile.publicRepos} Public)`
+
+    const followersBadge = document.createElement('span')
+    followersBadge.className = 'profile-badge'
+    followersBadge.textContent = `★ ${profile.followers} Followers`
+
+    const scopeBadge = document.createElement('span')
+    scopeBadge.className = 'profile-badge'
+    scopeBadge.textContent = '🔒 Repository & Read User Access'
+
+    badges.append(reposBadge, followersBadge, scopeBadge)
+    userInfo.append(name, handle, bio, badges)
+
+    const actions = document.createElement('div')
+    actions.className = 'profile-actions'
+
+    const refreshBtn = document.createElement('button')
+    refreshBtn.type = 'button'
+    refreshBtn.className = 'button button-secondary'
+    refreshBtn.textContent = '↻ Refresh'
+    refreshBtn.addEventListener('click', () => {
+      document.getElementById('github-refresh')?.click()
+    })
+
+    const disconnectBtn = document.createElement('button')
+    disconnectBtn.type = 'button'
+    disconnectBtn.className = 'button button-secondary'
+    disconnectBtn.textContent = 'Disconnect'
+    disconnectBtn.addEventListener('click', () => {
+      document.getElementById('github-disconnect')?.click()
+    })
+
+    actions.append(refreshBtn, disconnectBtn)
+    headerCard.append(userInfo, actions)
+    container.append(headerCard)
+
+    // 2. Repositories Panel
+    const reposPanel = document.createElement('section')
+    reposPanel.className = 'panel'
+
+    const reposHeading = document.createElement('div')
+    reposHeading.className = 'panel-heading'
+
+    const titleDiv = document.createElement('div')
+    const reposTitle = document.createElement('h2')
+    reposTitle.textContent = `Repositories (${currentGitHubRepositories.length})`
+    const reposSubtitle = document.createElement('p')
+    reposSubtitle.textContent = 'Public and private repositories accessible with your granted permissions.'
+    titleDiv.append(reposTitle, reposSubtitle)
+
+    reposHeading.append(titleDiv)
+
+    const searchInput = document.createElement('input')
+    searchInput.type = 'search'
+    searchInput.placeholder = 'Filter repositories by name or language…'
+    searchInput.style.width = '100%'
+    searchInput.style.margin = '14px 0 10px'
+    searchInput.style.padding = '8px 12px'
+    searchInput.style.borderRadius = '6px'
+    searchInput.style.border = '1px solid #393544'
+    searchInput.style.background = '#0b0d13'
+    searchInput.style.color = '#e8eaf2'
+    searchInput.style.font = 'inherit'
+    searchInput.style.fontSize = '11px'
+
+    const reposList = document.createElement('div')
+    reposList.className = 'github-repository-list'
+
+    function renderRepoRows(filterText = ''): void {
+      reposList.replaceChildren()
+      const query = filterText.trim().toLowerCase()
+      const filtered = currentGitHubRepositories.filter((repo) =>
+        `${repo.fullName} ${repo.description ?? ''} ${repo.language ?? ''}`
+          .toLowerCase()
+          .includes(query)
+      )
+
+      if (filtered.length === 0) {
+        const empty = document.createElement('p')
+        empty.className = 'github-repository-empty'
+        empty.textContent = currentGitHubRepositories.length === 0
+          ? 'No repositories were returned by GitHub.'
+          : 'No repositories match your search filter.'
+        reposList.append(empty)
+        return
+      }
+
+      filtered.forEach((repository) => {
+        const row = document.createElement('article')
+        row.className = 'github-repository-row'
+
+        const details = document.createElement('div')
+        details.className = 'github-repository-details'
+
+        const repoName = document.createElement('button')
+        repoName.type = 'button'
+        repoName.className = 'github-repository-name'
+        repoName.textContent = repository.fullName
+        repoName.title = `Open ${repository.fullName} on GitHub`
+        repoName.addEventListener('click', () => {
+          void window.api.openGitHubRepository(repository.url)
+        })
+
+        const desc = document.createElement('span')
+        desc.textContent = repository.description || 'No description provided'
+
+        details.append(repoName, desc)
+
+        const meta = document.createElement('div')
+        meta.className = 'github-repository-metadata'
+
+        if (repository.language) {
+          const lang = document.createElement('span')
+          lang.textContent = repository.language
+          meta.append(lang)
+        }
+
+        const visibility = document.createElement('span')
+        visibility.className = `repository-visibility ${repository.visibility}`
+        visibility.textContent = repository.visibility
+        meta.append(visibility)
+
+        if (repository.defaultBranch) {
+          const branch = document.createElement('span')
+          branch.textContent = `⌥ ${repository.defaultBranch}`
+          meta.append(branch)
+        }
+
+        row.append(details, meta)
+        reposList.append(row)
+      })
+    }
+
+    searchInput.addEventListener('input', () => renderRepoRows(searchInput.value))
+    renderRepoRows()
+
+    reposPanel.append(reposHeading, searchInput, reposList)
+    container.append(reposPanel)
+
+    // 3. Supabase Cloud Identity Panel
+    const cloudPanel = document.createElement('section')
+    cloudPanel.className = 'panel'
+    const cloudHeading = document.createElement('div')
+    cloudHeading.className = 'panel-heading'
+    const cloudTitle = document.createElement('div')
+    const cHead = document.createElement('h2')
+    cHead.textContent = 'Cloud & Workspace Account'
+    const cSub = document.createElement('p')
+    cSub.textContent = 'Supabase authentication session for team syncing and cloud services.'
+    cloudTitle.append(cHead, cSub)
+    cloudHeading.append(cloudTitle)
+
+    const cloudRow = createInfoRow(
+      'Supabase Authentication',
+      currentAccountEmail ? `Signed in (${currentAccountEmail})` : 'Not signed in',
+      'Manage cloud session credentials'
+    )
+
+    const cloudBtn = document.createElement('button')
+    cloudBtn.type = 'button'
+    cloudBtn.className = 'button button-secondary'
+    cloudBtn.style.marginTop = '14px'
+    cloudBtn.textContent = currentAccountEmail ? 'Sign out of Supabase' : 'Sign in to Supabase'
+    cloudBtn.addEventListener('click', () => {
+      document.getElementById('sign-in')?.click()
+    })
+
+    cloudPanel.append(cloudHeading, cloudRow, cloudBtn)
+    container.append(cloudPanel)
+  } else {
+    // Empty state: GitHub not connected
+    const emptyPanel = document.createElement('div')
+    emptyPanel.className = 'panel'
+    emptyPanel.style.textAlign = 'center'
+    emptyPanel.style.padding = '48px 24px'
+
+    const icon = document.createElement('div')
+    icon.className = 'empty-icon'
+    icon.textContent = '⌘'
+
+    const title = document.createElement('h3')
+    title.textContent = 'Connect GitHub to view your developer profile'
+    title.style.fontSize = '14px'
+    title.style.marginBottom = '8px'
+
+    const desc = document.createElement('p')
+    desc.textContent =
+      'Connect your GitHub account using the secure one-time Device Flow to view your avatar, username, and all accessible repositories.'
+    desc.style.color = 'var(--muted)'
+    desc.style.fontSize = '11px'
+    desc.style.maxWidth = '460px'
+    desc.style.margin = '0 auto 20px'
+    desc.style.lineHeight = '1.6'
+
+    const connectBtn = document.createElement('button')
+    connectBtn.type = 'button'
+    connectBtn.className = 'button button-primary'
+    connectBtn.textContent = '⌘ Connect GitHub'
+    connectBtn.addEventListener('click', () => {
+      document.getElementById('connect-github')?.click()
+    })
+
+    emptyPanel.append(icon, title, desc, connectBtn)
+    container.append(emptyPanel)
+  }
+}
+
 async function loadSettingsBootstrap(): Promise<void> {
   try {
     const [preferences, runtime, aiStatus] = await Promise.all([
@@ -1513,6 +1924,8 @@ async function loadSettingsBootstrap(): Promise<void> {
     currentAIStatus = aiStatus
     document.body.classList.toggle('reduce-motion', preferences.reduceMotion)
     if (preferences.startupPage === 'Settings') openSettings('account')
+    else if (preferences.startupPage === 'AI Chat') showPage('AI Chat', 'Chat, explore local projects, and review code with AI.')
+    else if (preferences.startupPage === 'Profile') showPage('Profile', 'View your connected GitHub profile and repositories.')
     renderSettingsSection(activeSettingsSection)
   } catch {
     currentRuntimeInfo = null

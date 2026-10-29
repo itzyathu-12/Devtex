@@ -1,0 +1,32 @@
+{
+    "name": "devtex-cli",
+    "version": "0.1.0",
+    "description": "DEVTEX Developer Workspace CLI",
+    "main": "./dist/index.js",
+    "type": "module",
+    "bin": {
+        "devtex": "./dist/index.js"
+    },
+    "scripts": {
+        "build": "tsc",
+        "dev": "tsx src/index.ts",
+        "test": "node dist/index.js --help"
+    },
+    "keywords": [
+        "devtex",
+        "developer-tools",
+        "cli",
+        "testing",
+        "debugging"
+    ],
+    "author": "Yatharth",
+    "license": "MIT",
+    "dependencies": {
+        "commander": "^15.0.0"
+    },
+    "devDependencies": {
+        "@types/node": "^26.6.6",
+        "tsx": "^4.21.0",
+        "typescript": "^7.0.2"
+    }
+}

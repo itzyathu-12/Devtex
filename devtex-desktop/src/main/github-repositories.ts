@@ -8,7 +8,8 @@ import type {
   GitHubRepositoryResult
 } from '../shared/github'
 
-const apiVersion = '2026-03-10'
+const apiVersion = '2022-11-28'
+const userAgent = 'DEVTEX-Desktop/1.0.0'
 const deviceAuthorizationUrl = 'https://github.com/login/device/code'
 const accessTokenUrl = 'https://github.com/login/oauth/access_token'
 const githubDeviceUrl = 'https://github.com/login/device'
@@ -124,7 +125,16 @@ export class GitHubRepositoryService {
     if (await this.hasCredential()) {
       const credential = await this.loadCredential()
       if (credential) {
-        return { connected: true, connecting: false, username: credential.username }
+        try {
+          const usable = await this.getUsableCredential(credential)
+          const username = await this.fetchUser(usable.accessToken)
+          if (username) {
+            return { connected: true, connecting: false, username }
+          }
+        } catch {
+          await this.clearCredential()
+          this.emit({ connected: false, connecting: false })
+        }
       }
     }
     if (!this.clientId) {
@@ -162,7 +172,29 @@ export class GitHubRepositoryService {
       }
     }
 
-    const currentCredential = await this.getUsableCredential(credential)
+    let currentCredential: StoredCredential
+    try {
+      currentCredential = await this.getUsableCredential(credential)
+    } catch (error) {
+      if (error instanceof GitHubAuthorizationError) {
+        await this.clearCredential()
+        this.emit({ connected: false, connecting: false, message: error.message })
+        return {
+          connected: false,
+          connecting: false,
+          repositories: [],
+          message: error.message
+        }
+      }
+      return {
+        connected: true,
+        connecting: false,
+        username: credential.username,
+        repositories: [],
+        message: error instanceof Error ? error.message : 'Could not refresh GitHub authorization.'
+      }
+    }
+
     try {
       const repositories = await this.fetchRepositories(currentCredential.accessToken)
       return {
@@ -175,8 +207,23 @@ export class GitHubRepositoryService {
       if (error instanceof GitHubAuthorizationError) {
         await this.clearCredential()
         this.emit({ connected: false, connecting: false, message: error.message })
+        return {
+          connected: false,
+          connecting: false,
+          repositories: [],
+          message: error.message
+        }
       }
-      throw error
+      return {
+        connected: true,
+        connecting: false,
+        username: currentCredential.username,
+        repositories: [],
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Could not contact GitHub. Check your network and try refreshing repositories.'
+      }
     }
   }
 
@@ -184,7 +231,17 @@ export class GitHubRepositoryService {
     const credential = await this.loadCredential()
     if (!credential) return null
 
-    const currentCredential = await this.getUsableCredential(credential)
+    let currentCredential: StoredCredential
+    try {
+      currentCredential = await this.getUsableCredential(credential)
+    } catch (error) {
+      if (error instanceof GitHubAuthorizationError) {
+        await this.clearCredential()
+        this.emit({ connected: false, connecting: false, message: error.message })
+      }
+      return null
+    }
+
     try {
       const body = await this.githubRequest(githubUserUrl, currentCredential.accessToken)
       if (
@@ -215,7 +272,7 @@ export class GitHubRepositoryService {
         await this.clearCredential()
         this.emit({ connected: false, connecting: false, message: error.message })
       }
-      throw error
+      return null
     }
   }
 
@@ -288,11 +345,9 @@ export class GitHubRepositoryService {
       }
       if (decrypted.shouldReEncrypt) await this.saveCredential(credential)
       return credential
-    } catch (error) {
-      throw new Error(
-        'The encrypted GitHub credential cannot be opened. Disconnect GitHub and reconnect.',
-        { cause: error }
-      )
+    } catch {
+      await this.clearCredential().catch(() => undefined)
+      return null
     }
   }
 
@@ -320,7 +375,8 @@ export class GitHubRepositoryService {
         method: 'POST',
         headers: {
           Accept: 'application/json',
-          'Content-Type': 'application/x-www-form-urlencoded'
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'User-Agent': userAgent
         },
         body: form
       })
@@ -418,7 +474,8 @@ export class GitHubRepositoryService {
           method: 'POST',
           headers: {
             Accept: 'application/json',
-            'Content-Type': 'application/x-www-form-urlencoded'
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'User-Agent': userAgent
           },
           body: form,
           signal
@@ -495,7 +552,8 @@ export class GitHubRepositoryService {
         method: 'POST',
         headers: {
           Accept: 'application/json',
-          'Content-Type': 'application/x-www-form-urlencoded'
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'User-Agent': userAgent
         },
         body: form
       })
@@ -601,19 +659,29 @@ export class GitHubRepositoryService {
         headers: {
           Accept: 'application/vnd.github+json',
           Authorization: `Bearer ${token}`,
-          'X-GitHub-Api-Version': apiVersion
+          'X-GitHub-Api-Version': apiVersion,
+          'User-Agent': userAgent
         }
       })
-    } catch {
+    } catch (error) {
       throw new Error(
-        'Could not contact GitHub. Check your network and try refreshing repositories.'
+        `Could not contact GitHub (${error instanceof Error ? error.message : 'network error'}). Check your network and try refreshing repositories.`,
+        { cause: error }
       )
     }
 
     const body: unknown = await response.json().catch(() => null)
     if (!response.ok) {
       const message = parseRetryMessage(response, body)
-      if (response.status === 401) throw new GitHubAuthorizationError(message)
+      if (
+        response.status === 401 ||
+        (response.status === 403 &&
+          (message.toLowerCase().includes('bad credential') ||
+            message.toLowerCase().includes('revoked') ||
+            message.toLowerCase().includes('expired')))
+      ) {
+        throw new GitHubAuthorizationError(message)
+      }
       throw new Error(message)
     }
     return body
