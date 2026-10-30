@@ -147,28 +147,6 @@ export type GeminiChatResponse =
       httpStatus?: number
     }
 
-export interface HardwareProfile {
-  collectedAt: string
-  operatingSystem: { platform: string; release: string; architecture: string }
-  cpu: { model: string; logicalCores: number }
-  memory: { totalBytes: number; freeBytes: number; usedBytes: number }
-  appProcess: {
-    residentSetBytes: number
-    heapUsedBytes: number
-    heapTotalBytes: number
-    uptimeSeconds: number
-  }
-  runtime: { electron: string; node: string; appVersion: string }
-}
-
-export interface AdaptiveResourcePolicy {
-  tier: 'conserve' | 'balanced' | 'performance'
-  backgroundConcurrency: number
-  indexingBatchSize: number
-  pauseNonessentialBackgroundWork: boolean
-  featureAvailability: 'full'
-}
-
 export interface AppRuntimeInfo {
   appVersion: string
   electronVersion: string
