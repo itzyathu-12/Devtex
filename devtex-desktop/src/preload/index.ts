@@ -5,7 +5,7 @@ import type {
   GitHubProfile,
   GitHubRepositoryResult
 } from '../shared/github'
-import type { AppPreferences, AppRuntimeInfo, HardwareProfile, AdaptiveResourcePolicy } from '../shared/settings'
+import type { AppPreferences, AppRuntimeInfo } from '../shared/settings'
 import type {
   GeminiChatRequest,
   GeminiChatResponse,
@@ -35,8 +35,6 @@ const api = {
     ipcRenderer.invoke('github:repositories'),
   getGitHubProfile: (): Promise<GitHubProfile | null> => ipcRenderer.invoke('github:profile'),
   getRuntimeInfo: (): Promise<AppRuntimeInfo> => ipcRenderer.invoke('settings:runtime'),
-  getHardwareProfile: (): Promise<{ profile: HardwareProfile; policy: AdaptiveResourcePolicy }> =>
-    ipcRenderer.invoke('hardware:profile'),
   getPreferences: (): Promise<AppPreferences> => ipcRenderer.invoke('settings:get-preferences'),
   savePreferences: (preferences: AppPreferences): Promise<AppPreferences> =>
     ipcRenderer.invoke('settings:save-preferences', preferences),
