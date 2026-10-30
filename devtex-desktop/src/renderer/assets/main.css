@@ -3081,3 +3081,47 @@ textarea:focus-visible {
     transition-duration: .01ms !important;
   }
 }
+
+
+/* Dedicated workspace pages */
+.workspace-page { display: flex; flex-direction: column; gap: 18px; }
+.workspace-page-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; margin-bottom: 4px; }
+.workspace-page-heading h1 { margin: 8px 0 6px; }
+.workspace-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.workspace-toolbar > div { display: flex; align-items: center; gap: 14px; }
+.workspace-kicker, .report-metrics article > span { color: #8494a5; font-size: 9px; letter-spacing: 1px; }
+.workspace-toolbar strong { color: #e8f2fb; font-size: 22px; }
+.workspace-toolbar input { width: min(360px, 55%); min-height: 36px; padding: 0 12px; border: 1px solid #2c3946; border-radius: 5px; background: #0c1218; color: #e1eaf2; }
+.workspace-project-list, .reports-list { display: flex; flex-direction: column; gap: 10px; }
+.workspace-project-row, .report-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 18px; border: 1px solid #263541; border-radius: 7px; background: #101820; }
+.workspace-project-identity { display: flex; align-items: center; gap: 13px; min-width: 0; }
+.workspace-project-icon { display: grid; place-items: center; width: 38px; height: 38px; flex: 0 0 auto; border: 1px solid #31516b; border-radius: 6px; background: #172b3e; color: #9bcaff; font-family: monospace; }
+.workspace-project-identity > div { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.workspace-project-identity strong, .report-row strong { color: #e1eaf2; font-size: 12px; }
+.workspace-project-identity code { color: #8193a4; font-size: 10px; overflow-wrap: anywhere; }
+.workspace-project-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.workspace-project-actions .button { min-height: 31px; }
+.workspace-empty { padding: 34px 20px; border: 1px dashed #344454; border-radius: 7px; text-align: center; background: #0e151c; }
+.workspace-empty h3 { margin: 0 0 7px; color: #e1eaf2; font-size: 13px; }
+.workspace-empty p { margin: 0; color: #8998a8; font-size: 11px; }
+.workspace-engine-status { padding: 7px 10px; border: 1px solid #315342; border-radius: 4px; background: #14251e; color: #9bd9b9; font-size: 9px; letter-spacing: .6px; }
+.testing-engine-content .engine-panel { width: 100%; max-width: none; }
+.testing-engine-content .engine-panel .engine-graphic { margin-top: 8px; }
+.report-metrics { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.report-metrics article { display: flex; flex-direction: column; gap: 12px; }
+.report-metrics article strong { color: #e8f2fb; font-size: 28px; }
+.report-row > div:first-child { min-width: 0; }
+.report-row p { margin: 6px 0; color: #9aa9b7; font-size: 11px; }
+.report-row time { color: #718293; font-size: 10px; }
+.report-counts { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex: 0 0 auto; }
+.report-counts strong { font-size: 22px; }
+.report-counts span, .report-counts small { color: #8796a5; font-size: 9px; }
+.reports-note { color: #77899a; font-size: 10px; }
+@media (max-width: 700px) {
+ .workspace-page-heading, .workspace-project-row, .report-row { align-items: flex-start; flex-direction: column; }
+ .workspace-toolbar { align-items: stretch; flex-direction: column; }
+ .workspace-toolbar input { width: 100%; }
+ .workspace-project-actions { width: 100%; }
+ .report-metrics { grid-template-columns: 1fr; }
+ .report-counts { align-items: flex-start; }
+}
