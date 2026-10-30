@@ -317,6 +317,34 @@
 
           </div>
 
+
+          <section class="workspace-page" id="projects-view" hidden>
+            <header class="workspace-page-heading">
+              <div><div class="eyebrow">PROJECT WORKSPACE</div><h1>Projects</h1><p class="subtitle">Your local codebases, ready to inspect and work on.</p></div>
+              <button type="button" class="button button-primary" id="projects-add">＋ Add project</button>
+            </header>
+            <div class="workspace-toolbar panel">
+              <div><span class="workspace-kicker">REGISTERED PROJECTS</span><strong id="workspace-project-count">00</strong></div>
+              <input id="projects-search" type="search" placeholder="Search by project name or path" aria-label="Search projects" />
+            </div>
+            <div id="workspace-project-list" class="workspace-project-list"></div>
+          </section>
+
+          <section class="workspace-page" id="testing-view" hidden>
+            <header class="workspace-page-heading"><div><div class="eyebrow">ANALYSIS WORKSPACE</div><h1>Testing Engine</h1><p class="subtitle">Select a project and run the current DEVTEX static defect scanner.</p></div><span class="workspace-engine-status">SCANNER AVAILABLE</span></header>
+            <div id="testing-engine-content" class="testing-engine-content"></div>
+          </section>
+
+          <section class="workspace-page" id="reports-view" hidden>
+            <header class="workspace-page-heading"><div><div class="eyebrow">QUALITY &amp; INSIGHTS</div><h1>Scan Reports</h1><p class="subtitle">A session history of completed project scans and their findings.</p></div></header>
+            <div class="report-metrics">
+              <article class="panel"><span>SCANS THIS SESSION</span><strong id="reports-total">00</strong></article>
+              <article class="panel"><span>TOTAL FINDINGS</span><strong id="reports-issues">0</strong></article>
+            </div>
+            <div id="reports-list" class="reports-list"></div>
+            <p class="reports-note">Reports are kept in memory for this app session only. They are not yet saved to disk.</p>
+          </section>
+
           <section class="settings-view" id="settings-view" aria-labelledby="settings-title" hidden>
             <header class="settings-heading">
               <div>
