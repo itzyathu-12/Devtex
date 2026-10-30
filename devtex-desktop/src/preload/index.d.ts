@@ -4,7 +4,7 @@ import type {
   GitHubProfile,
   GitHubRepositoryResult
 } from '../shared/github'
-import type { AIProviderId, AppPreferences, AppRuntimeInfo } from '../shared/settings'
+import type { AIProviderId, AppPreferences, AppRuntimeInfo, HardwareProfile, AdaptiveResourcePolicy } from '../shared/settings'
 import type {
   GeminiChatRequest,
   GeminiChatResponse,
@@ -26,6 +26,7 @@ declare global {
     getGitHubRepositories(): Promise<GitHubRepositoryResult>
     getGitHubProfile(): Promise<GitHubProfile | null>
     getRuntimeInfo(): Promise<AppRuntimeInfo>
+    getHardwareProfile(): Promise<{ profile: HardwareProfile; policy: AdaptiveResourcePolicy }>
     getPreferences(): Promise<AppPreferences>
     savePreferences(preferences: AppPreferences): Promise<AppPreferences>
     getAIStatus(): Promise<GeminiStatus>
