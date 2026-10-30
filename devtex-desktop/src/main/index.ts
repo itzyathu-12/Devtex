@@ -8,7 +8,6 @@ const is = { dev: process.env.NODE_ENV !== 'production' } as const;
 import icon from '../../resources/icon.png?asset'
 import { GitHubRepositoryService } from './github-repositories'
 import { getCurrentAIProvider } from './providers/provider-factory'
-import { getAdaptiveResourcePolicy, getHardwareProfile } from './hardware-profile'
 
 import {
   getPreferences,
@@ -138,12 +137,6 @@ ipcMain.handle('github:disconnect', async (event) => {
 ipcMain.handle('github:open-repository', async (event, value: unknown) => {
   assertTrustedSender(event)
   await githubRepositories.openRepository(value)
-})
-
-ipcMain.handle('hardware:profile', (event) => {
-  assertTrustedSender(event)
-  const profile = getHardwareProfile()
-  return { profile, policy: getAdaptiveResourcePolicy(profile) }
 })
 
 ipcMain.handle('settings:runtime', (event) => {
