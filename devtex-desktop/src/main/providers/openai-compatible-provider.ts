@@ -168,10 +168,20 @@ export class OpenAICompatibleProvider implements AIProvider {
       role: message.role,
       content: message.text
     }))
-    if (mode === 'code-assistance' || mode === 'code-review') {
-      const instruction = mode === 'code-review'
-        ? 'Act as a careful code reviewer. Identify concrete bugs, security risks, and missing tests. Prioritize findings by severity, cite relevant code excerpts or locations when provided, and do not claim to have executed code.'
-        : 'Act as a practical programming assistant. Explain the issue, propose a focused solution, and provide code when useful. Do not claim to have run code.'
+    if (
+      mode === 'code-assistance' ||
+      mode === 'code-review' ||
+      mode === 'bug-fix' ||
+      mode === 'code-edit'
+    ) {
+      const instruction =
+        mode === 'code-review'
+          ? 'Act as a careful code reviewer. Identify concrete bugs, security risks, and missing tests. Prioritize findings by severity, cite relevant code excerpts or locations when provided, and do not claim to have executed code.'
+          : mode === 'bug-fix'
+            ? 'Act as a software debugging and bug-fixing expert. Analyze the reported bug, explain the root cause clearly, and provide the exact solution with modified code in a devtex-edit block.'
+            : mode === 'code-edit'
+              ? 'Act as a code refactoring and editing assistant. Provide focused code changes with exact search and replace snippets in a devtex-edit block.'
+              : 'Act as a practical programming assistant. Explain the issue, propose a focused solution, and provide code when useful. Do not claim to have run code.'
       requestMessages.unshift({ role: 'system', content: instruction })
     }
 
@@ -245,7 +255,7 @@ export class OpenAICompatibleProvider implements AIProvider {
     }
     const request = value as GeminiChatRequest
     const mode = request.mode ?? 'chat'
-    if (!['chat', 'code-assistance', 'code-review'].includes(mode)) {
+    if (!['chat', 'code-assistance', 'code-review', 'bug-fix', 'code-edit'].includes(mode)) {
       throw new Error('Choose a valid AI mode.')
     }
     if (!Array.isArray(request.messages) || request.messages.length === 0 || request.messages.length > maxMessages) {
