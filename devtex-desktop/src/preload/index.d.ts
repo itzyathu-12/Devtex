@@ -10,7 +10,12 @@ import type {
   GeminiChatResponse,
   GeminiStatus,
   GeminiTestResult,
-  WorkspaceProject
+  WorkspaceProject,
+  ProjectFileReadRequest,
+  ProjectFileReadResult,
+  ProjectFileEditRequest,
+  ProjectFileEditResult,
+  ProjectBugScanResult
 } from '../shared/settings'
 
 declare global {
@@ -30,6 +35,9 @@ declare global {
     setAIModel(model: string): Promise<GeminiStatus>
     testAIConnection(): Promise<GeminiTestResult>
     sendAIChat(request: GeminiChatRequest): Promise<GeminiChatResponse>
+    readProjectFile(request: ProjectFileReadRequest): Promise<ProjectFileReadResult>
+    applyProjectFileEdit(request: ProjectFileEditRequest): Promise<ProjectFileEditResult>
+    scanProjectForBugs(projectPath: string): Promise<ProjectBugScanResult>
     disconnectGitHubRepositories(): Promise<GitHubConnectionStatus>
     openGitHubRepository(url: string): Promise<void>
     getProjects(): Promise<WorkspaceProject[]>

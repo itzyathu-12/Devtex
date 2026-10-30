@@ -213,9 +213,9 @@
                 <div class="panel-heading">
                   <div>
                     <h2>Testing Engine</h2>
-                    <p>Automated software testing</p>
+                    <p>Automated software bug scanner</p>
                   </div>
-                  <span class="status-pill"> <span></span> IN DEVELOPMENT </span>
+                  <span class="status-pill"> <span></span> ACTIVE SCANNER </span>
                 </div>
 
                 <div class="engine-graphic">
@@ -226,17 +226,22 @@
                   </div>
                 </div>
 
-                <h3 class="engine-title">Ready when you are.</h3>
+                <h3 class="engine-title">Automated Bug Detection</h3>
                 <p class="engine-description">
-                  The interface is ready. The real testing and bug-detection engine will be
-                  connected in a later build.
+                  Inspect project source files to discover bugs, security vulnerabilities, unhandled errors, and code defects.
                 </p>
 
+                <div style="margin-bottom: 12px; width: 100%;">
+                  <select id="engine-project-select" style="width: 100%; min-height: 34px; padding: 0 10px; border: 1px solid #393544; border-radius: 6px; color: #e8eaf2; background: #0b0d13; font-size: 11px;">
+                    <option value="">Select project to scan...</option>
+                  </select>
+                </div>
+
                 <button type="button" class="button button-primary full-width" id="run-scan">
-                  Run demo scan <span>→</span>
+                  Scan Project for Bugs 🔍
                 </button>
 
-                <p class="demo-note">DEMO ONLY · DOES NOT SCAN REAL CODE</p>
+                <p class="demo-note">AUTOMATED CODE &amp; AI BUG DETECTION ENGINE</p>
                 <div id="scan-result" class="scan-result" role="status"></div>
               </section>
             </div>

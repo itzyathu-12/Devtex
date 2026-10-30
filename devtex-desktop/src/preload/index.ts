@@ -12,7 +12,12 @@ import type {
   AIProviderId,
   GeminiStatus,
   GeminiTestResult,
-  WorkspaceProject
+  WorkspaceProject,
+  ProjectFileReadRequest,
+  ProjectFileReadResult,
+  ProjectFileEditRequest,
+  ProjectFileEditResult,
+  ProjectBugScanResult
 } from '../shared/settings'
 
 // Custom APIs for renderer
@@ -42,6 +47,12 @@ const api = {
   testAIConnection: (): Promise<GeminiTestResult> => ipcRenderer.invoke('ai:test'),
   sendAIChat: (request: GeminiChatRequest): Promise<GeminiChatResponse> =>
     ipcRenderer.invoke('ai:chat', request),
+  readProjectFile: (request: ProjectFileReadRequest): Promise<ProjectFileReadResult> =>
+    ipcRenderer.invoke('project:read-file', request),
+  applyProjectFileEdit: (request: ProjectFileEditRequest): Promise<ProjectFileEditResult> =>
+    ipcRenderer.invoke('project:apply-edit', request),
+  scanProjectForBugs: (projectPath: string): Promise<ProjectBugScanResult> =>
+    ipcRenderer.invoke('project:scan-bugs', projectPath),
   disconnectGitHubRepositories: (): Promise<GitHubConnectionStatus> =>
     ipcRenderer.invoke('github:disconnect'),
   openGitHubRepository: (url: string): Promise<void> =>

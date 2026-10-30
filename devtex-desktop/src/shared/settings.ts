@@ -82,8 +82,58 @@ export interface GeminiChatMessage {
 
 export interface GeminiChatRequest {
   messages: GeminiChatMessage[]
-  mode?: 'chat' | 'code-assistance' | 'code-review'
+  mode?: 'chat' | 'code-assistance' | 'code-review' | 'bug-fix' | 'code-edit'
   projectPath?: string
+}
+
+export interface ProjectFileEditRequest {
+  projectPath: string
+  filePath: string
+  newContent?: string
+  originalContent?: string
+  searchSnippet?: string
+  replaceSnippet?: string
+}
+
+export interface ProjectFileEditResult {
+  success: boolean
+  error?: string
+  backupPath?: string
+  appliedPath?: string
+}
+
+export interface ProjectFileReadRequest {
+  projectPath: string
+  filePath: string
+}
+
+export interface ProjectFileReadResult {
+  success: boolean
+  content?: string
+  error?: string
+}
+
+export interface DetectedBug {
+  id: string
+  file: string
+  line?: number
+  severity: 'critical' | 'warning' | 'info'
+  title: string
+  description: string
+  suggestedFix?: string
+  snippet?: string
+}
+
+export interface ProjectBugScanRequest {
+  projectPath: string
+}
+
+export interface ProjectBugScanResult {
+  success: boolean
+  bugs: DetectedBug[]
+  scannedFilesCount: number
+  summary: string
+  error?: string
 }
 
 export type GeminiChatResponse =

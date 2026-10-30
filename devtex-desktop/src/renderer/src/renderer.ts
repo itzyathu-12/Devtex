@@ -110,7 +110,7 @@ function init(): void {
     showVersions()
     setupNavigation()
     setupProjects()
-    setupDemoScan()
+    setupTestingEngine()
     setupGitHubRepositories()
     setupAuthentication()
     setupProfileMenu()
@@ -364,17 +364,421 @@ function setupProjects(): void {
     })
 }
 
-function setupDemoScan(): void {
-  const button = document.getElementById('run-scan')
-  const result = document.getElementById('scan-result')
+interface CodeEditBlock {
+  raw: string
+  filePath: string
+  type: 'patch' | 'write'
+  searchSnippet?: string
+  replaceSnippet?: string
+  newContent?: string
+}
 
-  button?.addEventListener('click', () => {
-    if (result) {
-      result.textContent =
-        'Demo complete. No code was scanned. The real testing engine is not connected yet.'
+function parseCodeEditBlocks(text: string): {
+  segments: Array<{ isEdit: boolean; text?: string; edit?: CodeEditBlock }>
+} {
+  const segments: Array<{ isEdit: boolean; text?: string; edit?: CodeEditBlock }> = []
+  const blockRegex = /```(?:devtex-edit|devtex-write:?([^\n]*))\s*([\s\S]*?)```/g
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+
+  while ((match = blockRegex.exec(text)) !== null) {
+    const startIdx = match.index
+    if (startIdx > lastIndex) {
+      segments.push({ isEdit: false, text: text.slice(lastIndex, startIdx) })
     }
 
-    addActivity('Ran demo scan', 'UI demonstration only; no files were inspected.')
+    const fullMatch = match[0]
+    const writeArg = match[1]?.trim()
+    const blockBody = match[2]
+
+    if (writeArg || fullMatch.startsWith('```devtex-write')) {
+      let filePath = writeArg || ''
+      let fileContent = blockBody
+      if (!filePath) {
+        const fileMatch = /^file:\s*([^\n]+)/m.exec(blockBody)
+        if (fileMatch) {
+          filePath = fileMatch[1].trim()
+          fileContent = blockBody.replace(/^file:[^\n]+\n?/, '')
+        }
+      }
+      if (filePath) {
+        segments.push({
+          isEdit: true,
+          edit: {
+            raw: fullMatch,
+            filePath,
+            type: 'write',
+            newContent: fileContent.trim()
+          }
+        })
+      } else {
+        segments.push({ isEdit: false, text: fullMatch })
+      }
+    } else {
+      const fileMatch = /^file:\s*([^\n]+)/m.exec(blockBody)
+      const filePath = fileMatch ? fileMatch[1].trim() : ''
+
+      if (filePath && blockBody.includes('<<<<<<< SEARCH') && blockBody.includes('=======')) {
+        const searchPart = blockBody.split('<<<<<<< SEARCH')[1]?.split('=======')[0] || ''
+        const replacePart = blockBody.split('=======')[1]?.split('>>>>>>>')[0] || ''
+        segments.push({
+          isEdit: true,
+          edit: {
+            raw: fullMatch,
+            filePath,
+            type: 'patch',
+            searchSnippet: searchPart.replace(/^\r?\n/, '').replace(/\r?\n$/, ''),
+            replaceSnippet: replacePart.replace(/^\r?\n/, '').replace(/\r?\n$/, '')
+          }
+        })
+      } else if (filePath && blockBody.includes('search:') && blockBody.includes('replace:')) {
+        const searchPart = blockBody.split('search:')[1]?.split('replace:')[0] || ''
+        const replacePart = blockBody.split('replace:')[1] || ''
+        segments.push({
+          isEdit: true,
+          edit: {
+            raw: fullMatch,
+            filePath,
+            type: 'patch',
+            searchSnippet: searchPart.trim(),
+            replaceSnippet: replacePart.trim()
+          }
+        })
+      } else if (filePath) {
+        const content = blockBody.replace(/^file:[^\n]+\n?/, '').trim()
+        segments.push({
+          isEdit: true,
+          edit: {
+            raw: fullMatch,
+            filePath,
+            type: 'write',
+            newContent: content
+          }
+        })
+      } else {
+        segments.push({ isEdit: false, text: fullMatch })
+      }
+    }
+
+    lastIndex = match.index + fullMatch.length
+  }
+
+  if (lastIndex < text.length) {
+    segments.push({ isEdit: false, text: text.slice(lastIndex) })
+  }
+
+  return { segments }
+}
+
+function createEditCard(edit: CodeEditBlock, targetProjectPath?: string): HTMLElement {
+  const card = document.createElement('div')
+  card.className = 'devtex-edit-card'
+
+  const header = document.createElement('div')
+  header.className = 'devtex-edit-header'
+
+  const fileInfo = document.createElement('div')
+  fileInfo.className = 'devtex-edit-file'
+  fileInfo.textContent = `📝 ${edit.filePath}`
+
+  const statusBadge = document.createElement('span')
+  statusBadge.className = 'devtex-status-badge pending'
+  statusBadge.textContent = 'Pending Approval'
+
+  header.append(fileInfo, statusBadge)
+  card.append(header)
+
+  const diffContainer = document.createElement('div')
+  diffContainer.className = 'devtex-diff-container'
+
+  if (edit.type === 'patch') {
+    const meta = document.createElement('div')
+    meta.className = 'devtex-diff-line meta'
+    meta.textContent = `@@ Proposed Modification in ${edit.filePath} @@`
+    diffContainer.append(meta)
+
+    const searchLines = (edit.searchSnippet || '').split('\n')
+    searchLines.forEach((l) => {
+      const line = document.createElement('div')
+      line.className = 'devtex-diff-line deletion'
+      line.textContent = `- ${l}`
+      diffContainer.append(line)
+    })
+
+    const replaceLines = (edit.replaceSnippet || '').split('\n')
+    replaceLines.forEach((l) => {
+      const line = document.createElement('div')
+      line.className = 'devtex-diff-line addition'
+      line.textContent = `+ ${l}`
+      diffContainer.append(line)
+    })
+  } else {
+    const meta = document.createElement('div')
+    meta.className = 'devtex-diff-line meta'
+    meta.textContent = `+++ New / Rewritten File: ${edit.filePath} +++`
+    diffContainer.append(meta)
+
+    const writeLines = (edit.newContent || '').split('\n')
+    writeLines.forEach((l) => {
+      const line = document.createElement('div')
+      line.className = 'devtex-diff-line addition'
+      line.textContent = `+ ${l}`
+      diffContainer.append(line)
+    })
+  }
+
+  card.append(diffContainer)
+
+  const actions = document.createElement('div')
+  actions.className = 'devtex-edit-actions'
+
+  const prompt = document.createElement('span')
+  prompt.className = 'devtex-edit-prompt'
+  prompt.textContent = '⚠️ Ask Before Changing: Review diff before writing to disk'
+
+  const btnGroup = document.createElement('div')
+  btnGroup.className = 'devtex-btn-group'
+
+  const applyBtn = document.createElement('button')
+  applyBtn.type = 'button'
+  applyBtn.className = 'devtex-apply-btn'
+  applyBtn.textContent = 'Apply Changes'
+
+  const discardBtn = document.createElement('button')
+  discardBtn.type = 'button'
+  discardBtn.className = 'devtex-discard-btn'
+  discardBtn.textContent = 'Discard'
+
+  applyBtn.addEventListener('click', async () => {
+    if (!targetProjectPath) {
+      alert('No workspace project is currently selected. Select a project in the selector above to apply file changes.')
+      return
+    }
+
+    const confirmed = window.confirm(
+      `Confirm Code Modification:\n\nApply changes to "${edit.filePath}" in project?\n\nA backup copy (.devtex.bak) will be created before saving.`
+    )
+    if (!confirmed) return
+
+    applyBtn.disabled = true
+    applyBtn.textContent = 'Applying...'
+
+    try {
+      const result = await window.api.applyProjectFileEdit({
+        projectPath: targetProjectPath,
+        filePath: edit.filePath,
+        searchSnippet: edit.searchSnippet,
+        replaceSnippet: edit.replaceSnippet,
+        newContent: edit.newContent
+      })
+
+      if (result.success) {
+        statusBadge.className = 'devtex-status-badge applied'
+        statusBadge.textContent = '✔ Applied to disk'
+        prompt.textContent = `Saved to disk! Backup created at ${result.backupPath || 'backup file'}`
+        applyBtn.remove()
+        discardBtn.remove()
+        addActivity('Code change applied', `Updated ${edit.filePath} on disk with AI fix`)
+      } else {
+        applyBtn.disabled = false
+        applyBtn.textContent = 'Retry Apply'
+        prompt.style.color = '#ef4444'
+        prompt.textContent = `Failed: ${result.error || 'Could not apply change'}`
+      }
+    } catch (err) {
+      applyBtn.disabled = false
+      applyBtn.textContent = 'Retry Apply'
+      prompt.style.color = '#ef4444'
+      prompt.textContent = `Error: ${err instanceof Error ? err.message : 'Unknown error'}`
+    }
+  })
+
+  discardBtn.addEventListener('click', () => {
+    statusBadge.className = 'devtex-status-badge rejected'
+    statusBadge.textContent = 'Discarded'
+    prompt.textContent = 'Change rejected by user.'
+    applyBtn.remove()
+    discardBtn.remove()
+  })
+
+  btnGroup.append(applyBtn, discardBtn)
+  actions.append(prompt, btnGroup)
+  card.append(actions)
+
+  return card
+}
+
+function openAIChatWithFixPrompt(
+  projectPath: string,
+  bug: { file: string; line?: number; title: string; description: string }
+): void {
+  activeAIProjectPath = projectPath
+  showPage('AI Chat', 'Chat, explore local projects, and review code with AI.')
+  const input = document.getElementById('gemini-chat-input') as HTMLTextAreaElement | null
+  const projectSelector = document.getElementById('ai-chat-project') as HTMLSelectElement | null
+  const modeSelect = document.getElementById('ai-chat-mode') as HTMLSelectElement | null
+
+  if (projectSelector) {
+    projectSelector.value = projectPath
+  }
+  if (modeSelect) {
+    modeSelect.value = 'bug-fix'
+  }
+  if (input) {
+    input.value = `Fix the bug in ${bug.file}${bug.line ? ` at line ${bug.line}` : ''}: "${bug.title}".\nDetails: ${bug.description}\nPlease provide the exact code modification inside a devtex-edit block.`
+    input.focus()
+  }
+}
+
+function setupTestingEngine(): void {
+  const button = document.getElementById('run-scan') as HTMLButtonElement | null
+  const result = document.getElementById('scan-result')
+  const projectSelect = document.getElementById('engine-project-select') as HTMLSelectElement | null
+
+  async function populateProjects(): Promise<void> {
+    if (!projectSelect) return
+    try {
+      const projects = await window.api.getProjects()
+      projectSelect.replaceChildren()
+      if (projects.length === 0) {
+        const opt = document.createElement('option')
+        opt.value = ''
+        opt.textContent = 'No local projects added yet'
+        projectSelect.append(opt)
+        return
+      }
+      projects.forEach((p, idx) => {
+        const opt = document.createElement('option')
+        opt.value = p.path
+        opt.textContent = `Project: ${p.name}`
+        if (activeAIProjectPath ? activeAIProjectPath === p.path : idx === 0) {
+          opt.selected = true
+        }
+        projectSelect.append(opt)
+      })
+    } catch {
+      // ignore
+    }
+  }
+
+  void populateProjects()
+
+  button?.addEventListener('click', async () => {
+    if (!button || !result) return
+    const targetPath = projectSelect?.value || activeAIProjectPath
+    if (!targetPath) {
+      result.textContent = 'Please add or select a workspace project first.'
+      return
+    }
+
+    button.disabled = true
+    button.textContent = 'Scanning code for bugs...'
+    result.replaceChildren()
+
+    const loadingP = document.createElement('p')
+    loadingP.className = 'gemini-chat-pending'
+    loadingP.textContent = 'Inspecting project files, running static defect checks and AI analysis...'
+    result.append(loadingP)
+
+    try {
+      const scanRes = await window.api.scanProjectForBugs(targetPath)
+      result.replaceChildren()
+
+      const summaryDiv = document.createElement('div')
+      summaryDiv.style.marginBottom = '12px'
+      summaryDiv.style.padding = '8px 12px'
+      summaryDiv.style.borderRadius = '6px'
+      summaryDiv.style.background = 'rgba(139, 106, 255, 0.12)'
+      summaryDiv.style.border = '1px solid rgba(139, 106, 255, 0.3)'
+      summaryDiv.style.fontSize = '11px'
+      summaryDiv.style.color = '#e2e8f0'
+      summaryDiv.textContent = scanRes.summary
+      result.append(summaryDiv)
+
+      if (scanRes.bugs.length === 0) {
+        const emptyState = document.createElement('p')
+        emptyState.className = 'gemini-chat-empty'
+        emptyState.textContent = 'No critical bugs or syntax defects discovered in scanned files.'
+        result.append(emptyState)
+      } else {
+        const bugList = document.createElement('div')
+        bugList.className = 'engine-scan-results'
+
+        scanRes.bugs.forEach((bug) => {
+          const card = document.createElement('div')
+          card.className = `bug-card ${bug.severity}`
+
+          const header = document.createElement('div')
+          header.className = 'bug-header'
+
+          const titleWrap = document.createElement('div')
+          titleWrap.className = 'bug-title-wrap'
+
+          const badge = document.createElement('span')
+          badge.className = `bug-severity ${bug.severity}`
+          badge.textContent = bug.severity
+
+          const titleEl = document.createElement('span')
+          titleEl.className = 'bug-title'
+          titleEl.textContent = bug.title
+
+          titleWrap.append(badge, titleEl)
+
+          const fileEl = document.createElement('span')
+          fileEl.className = 'bug-file'
+          fileEl.textContent = `${bug.file}${bug.line ? `:${bug.line}` : ''}`
+
+          header.append(titleWrap, fileEl)
+
+          const desc = document.createElement('p')
+          desc.className = 'bug-desc'
+          desc.textContent = bug.description
+
+          card.append(header, desc)
+
+          if (bug.snippet) {
+            const snip = document.createElement('div')
+            snip.className = 'bug-snippet'
+            snip.textContent = bug.snippet
+            card.append(snip)
+          }
+
+          if (bug.suggestedFix) {
+            const fixHint = document.createElement('p')
+            fixHint.style.fontSize = '10px'
+            fixHint.style.color = '#86efac'
+            fixHint.style.margin = '2px 0 0'
+            fixHint.textContent = `Suggested Fix: ${bug.suggestedFix}`
+            card.append(fixHint)
+          }
+
+          const fixBtn = document.createElement('button')
+          fixBtn.type = 'button'
+          fixBtn.className = 'bug-fix-btn'
+          fixBtn.textContent = 'Fix with AI ✦'
+          fixBtn.addEventListener('click', () => {
+            openAIChatWithFixPrompt(targetPath, bug)
+          })
+
+          card.append(fixBtn)
+          bugList.append(card)
+        })
+
+        result.append(bugList)
+      }
+
+      addActivity('Bug scan completed', scanRes.summary)
+    } catch (err) {
+      result.replaceChildren()
+      const errP = document.createElement('p')
+      errP.style.color = '#ef4444'
+      errP.style.fontSize = '11px'
+      errP.textContent = err instanceof Error ? err.message : 'Bug scan failed.'
+      result.append(errP)
+    } finally {
+      button.disabled = false
+      button.textContent = 'Scan Project for Bugs 🔍'
+    }
   })
 }
 
@@ -1405,7 +1809,9 @@ function renderGeminiChat(panel: HTMLElement): void {
   const modes = [
     { value: 'chat', label: 'Chat' },
     { value: 'code-assistance', label: 'Code assistance' },
-    { value: 'code-review', label: 'Code review' }
+    { value: 'code-review', label: 'Code review' },
+    { value: 'code-edit', label: 'Code editing' },
+    { value: 'bug-fix', label: 'Bug fixing' }
   ] as const
   modes.forEach((item) => {
     const option = document.createElement('option')
@@ -1550,9 +1956,35 @@ function renderGeminiChat(panel: HTMLElement): void {
       bubble.className = `gemini-message ${message.role}`
       const author = document.createElement('strong')
       author.textContent = message.role === 'user' ? 'You' : currentAIStatus.providerLabel
-      const text = document.createElement('p')
-      text.textContent = message.text
-      bubble.append(author, text)
+      bubble.append(author)
+
+      if (message.role === 'assistant') {
+        const { segments } = parseCodeEditBlocks(message.text)
+        if (segments.length > 0 && segments.some((s) => s.isEdit)) {
+          segments.forEach((seg) => {
+            if (seg.isEdit && seg.edit) {
+              const card = createEditCard(
+                seg.edit,
+                projectSelector.value || activeAIProjectPath || undefined
+              )
+              bubble.append(card)
+            } else if (seg.text && seg.text.trim()) {
+              const text = document.createElement('p')
+              text.textContent = seg.text.trim()
+              bubble.append(text)
+            }
+          })
+        } else {
+          const text = document.createElement('p')
+          text.textContent = message.text
+          bubble.append(text)
+        }
+      } else {
+        const text = document.createElement('p')
+        text.textContent = message.text
+        bubble.append(text)
+      }
+
       transcript.append(bubble)
     })
     transcript.scrollTop = transcript.scrollHeight
@@ -1589,7 +2021,12 @@ function renderGeminiChat(panel: HTMLElement): void {
         try {
           const response = await window.api.sendAIChat({
             messages: requestMessages,
-            mode: mode.value as 'chat' | 'code-assistance' | 'code-review',
+            mode: mode.value as
+              | 'chat'
+              | 'code-assistance'
+              | 'code-review'
+              | 'bug-fix'
+              | 'code-edit',
             projectPath: targetProjectPath
           })
           if (response.success) {

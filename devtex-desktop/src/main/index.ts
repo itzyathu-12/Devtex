@@ -17,9 +17,21 @@ import {
   getRuntimeInfo,
   savePreferences
 } from './settings'
-import { chooseProjectFolder, inspectProject } from './project-inspector'
+import {
+  chooseProjectFolder,
+  inspectProject,
+  readProjectFile,
+  applyProjectFileEdit,
+  scanProjectForBugs
+} from './project-inspector'
 import type { GitHubConnectionStatus } from '../shared/github'
-import type { WorkspaceProject, GeminiChatRequest, GeminiChatMessage } from '../shared/settings'
+import type {
+  WorkspaceProject,
+  GeminiChatRequest,
+  GeminiChatMessage,
+  ProjectFileEditRequest,
+  ProjectFileReadRequest
+} from '../shared/settings'
 
 declare const __GITHUB_OAUTH_CLIENT_ID__: string
 
@@ -225,10 +237,27 @@ ipcMain.handle('ai:chat', async (event, value: unknown) => {
         try {
           const userText = lastUserMessage.text.trim();
           // Leave room for user question and wrapper so total message stays under 8,000 chars
-          const contextBudget = Math.max(1200, Math.min(4500, 7500 - userText.length));
+          const contextBudget = Math.max(1200, Math.min(3800, 7200 - userText.length));
           const projectContext = await inspectProject(projectPath, userText, contextBudget);
           const projectName = basename(projectPath) || 'project';
-          const enrichedUserText = `[Project Context: ${projectName}]\n${projectContext}\n\n[User Question]\n${userText}`.slice(0, 7800);
+          const codeEditGuide = `[DEVTEX System Guidance: Code Editing & Bug Fixing]
+When asked to write code, edit code, or fix bugs, explain your solution clearly. Then output the exact code change in one of these structured blocks:
+Option 1 (Replacing code in existing file):
+\`\`\`devtex-edit
+file: relative/path/to/file.ext
+<<<<<<< SEARCH
+exact lines to replace
+=======
+exact replacement lines
+>>>>>>>
+\`\`\`
+Option 2 (New file or rewriting whole file):
+\`\`\`devtex-write:relative/path/to/file.ext
+// full new file content
+\`\`\`
+The user will review the interactive diff and must approve before any change is written to disk.`;
+
+          const enrichedUserText = `[Project Context: ${projectName}]\n${projectContext}\n\n${codeEditGuide}\n\n[User Request]\n${userText}`.slice(0, 7800);
 
           const enrichedMessages: GeminiChatMessage[] = rawReq.messages.map((m, idx) =>
             idx === lastUserIdx ? { ...m, text: enrichedUserText } : m
@@ -242,6 +271,53 @@ ipcMain.handle('ai:chat', async (event, value: unknown) => {
   }
   const provider = await getCurrentAIProvider();
   return provider.chat(requestValue);
+});
+
+ipcMain.handle('project:read-file', async (event, req: unknown) => {
+  assertTrustedSender(event);
+  if (!req || typeof req !== 'object' || !('projectPath' in req) || !('filePath' in req)) {
+    throw new Error('Invalid project file read request.');
+  }
+  const { projectPath, filePath } = req as ProjectFileReadRequest;
+  try {
+    const content = await readProjectFile(projectPath, filePath);
+    return { success: true, content };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Failed to read file.' };
+  }
+});
+
+ipcMain.handle('project:apply-edit', async (event, req: unknown) => {
+  assertTrustedSender(event);
+  if (!req || typeof req !== 'object' || !('projectPath' in req) || !('filePath' in req)) {
+    throw new Error('Invalid project file edit request.');
+  }
+  return applyProjectFileEdit(req as ProjectFileEditRequest);
+});
+
+ipcMain.handle('project:scan-bugs', async (event, projectPath: unknown) => {
+  assertTrustedSender(event);
+  if (typeof projectPath !== 'string' || !projectPath.trim()) {
+    throw new Error('Invalid project path for bug scan.');
+  }
+  let aiChatCallback: ((prompt: string) => Promise<string>) | undefined;
+  try {
+    const provider = await getCurrentAIProvider();
+    const status = await provider.status();
+    if (status.configured) {
+      aiChatCallback = async (prompt: string): Promise<string> => {
+        const resp = await provider.chat({
+          messages: [{ role: 'user', text: prompt }],
+          mode: 'bug-fix'
+        });
+        if (resp.success) return resp.text;
+        throw new Error(resp.message || 'AI bug scan request failed');
+      };
+    }
+  } catch {
+    // Fall back to heuristic scanning without failing
+  }
+  return scanProjectForBugs(projectPath.trim(), aiChatCallback);
 });
 
 ipcMain.on('auth:renderer-ready', (event) => {

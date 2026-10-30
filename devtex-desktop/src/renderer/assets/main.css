@@ -2212,3 +2212,266 @@ select:focus {
     max-height: calc(100vh - 68px);
   }
 }
+
+/* DEVTEX Code Editing & Proposed Change Cards */
+.devtex-edit-card {
+  margin: 12px 0 6px;
+  background: #090c14;
+  border: 1px solid rgba(139, 106, 255, 0.3);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+.devtex-edit-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #131722;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 11px;
+}
+
+.devtex-edit-file {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #79c0ff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 600;
+}
+
+.devtex-status-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.devtex-status-badge.pending {
+  background: rgba(234, 179, 8, 0.18);
+  color: #fbbf24;
+  border: 1px solid rgba(234, 179, 8, 0.4);
+}
+
+.devtex-status-badge.applied {
+  background: rgba(34, 197, 94, 0.18);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+}
+
+.devtex-status-badge.rejected {
+  background: rgba(148, 163, 184, 0.15);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.devtex-diff-container {
+  max-height: 280px;
+  overflow-y: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  background: #06080e;
+}
+
+.devtex-diff-line {
+  display: flex;
+  padding: 1px 8px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.devtex-diff-line.deletion {
+  background: rgba(239, 68, 68, 0.18);
+  color: #fca5a5;
+  border-left: 3px solid #ef4444;
+}
+
+.devtex-diff-line.addition {
+  background: rgba(34, 197, 94, 0.18);
+  color: #86efac;
+  border-left: 3px solid #22c55e;
+}
+
+.devtex-diff-line.context {
+  color: #94a3b8;
+  border-left: 3px solid transparent;
+}
+
+.devtex-diff-line.meta {
+  color: #a78bfa;
+  background: rgba(139, 106, 255, 0.08);
+  font-weight: 600;
+  padding: 4px 8px;
+}
+
+.devtex-edit-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #111420;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.devtex-edit-prompt {
+  font-size: 10px;
+  color: #9290a0;
+}
+
+.devtex-btn-group {
+  display: flex;
+  gap: 8px;
+}
+
+.devtex-apply-btn {
+  background: #16a34a !important;
+  color: #ffffff !important;
+  border: none !important;
+  padding: 4px 12px !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  border-radius: 4px !important;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.devtex-apply-btn:hover {
+  background: #15803d !important;
+}
+
+.devtex-discard-btn {
+  background: transparent !important;
+  color: #94a3b8 !important;
+  border: 1px solid #334155 !important;
+  padding: 4px 10px !important;
+  font-size: 10px !important;
+  border-radius: 4px !important;
+  cursor: pointer;
+}
+
+.devtex-discard-btn:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #e2e8f0 !important;
+}
+
+/* Testing Engine Bug Results */
+.engine-scan-results {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 400px;
+  overflow-y: auto;
+  text-align: left;
+}
+
+.bug-card {
+  padding: 10px 12px;
+  background: #090c14;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bug-card.critical {
+  border-left: 3px solid #ef4444;
+}
+
+.bug-card.warning {
+  border-left: 3px solid #f59e0b;
+}
+
+.bug-card.info {
+  border-left: 3px solid #3b82f6;
+}
+
+.bug-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.bug-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bug-severity {
+  font-size: 8px;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+
+.bug-severity.critical {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+}
+
+.bug-severity.warning {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+}
+
+.bug-severity.info {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+}
+
+.bug-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.bug-file {
+  font-family: ui-monospace, monospace;
+  font-size: 9px;
+  color: #94a3b8;
+}
+
+.bug-desc {
+  font-size: 10px;
+  color: #cbd5e1;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.bug-snippet {
+  font-family: ui-monospace, monospace;
+  font-size: 9px;
+  background: #040508;
+  padding: 4px 6px;
+  border-radius: 4px;
+  color: #f43f5e;
+  overflow-x: auto;
+}
+
+.bug-fix-btn {
+  align-self: flex-start;
+  background: rgba(139, 106, 255, 0.2) !important;
+  color: #c4b5fd !important;
+  border: 1px solid rgba(139, 106, 255, 0.4) !important;
+  font-size: 9px !important;
+  padding: 3px 8px !important;
+  border-radius: 4px !important;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.bug-fix-btn:hover {
+  background: rgba(139, 106, 255, 0.4) !important;
+  color: #ffffff !important;
+}

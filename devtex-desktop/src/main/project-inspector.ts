@@ -1,6 +1,12 @@
 import type { BrowserWindow, OpenDialogOptions } from 'electron'
-import { readdir, readFile, stat } from 'node:fs/promises'
-import { basename, join, relative } from 'node:path'
+import { copyFile, mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
+import type {
+  DetectedBug,
+  ProjectBugScanResult,
+  ProjectFileEditRequest,
+  ProjectFileEditResult
+} from '../shared/settings'
 
 const ignoredDirectories = new Set([
   '.git',
@@ -231,3 +237,268 @@ ${filesSection}`
   }
   return result
 }
+
+export function safeResolveProjectFile(projectPath: string, relPath: string): string {
+  const root = resolve(projectPath)
+  const normalizedRel = relPath.replace(/\\/g, '/').replace(/^\/+/, '')
+  const target = resolve(root, normalizedRel)
+  const relativeCheck = relative(root, target)
+  if (relativeCheck.startsWith('..') || isAbsolute(relativeCheck)) {
+    throw new Error('Access outside project directory is prohibited for security.')
+  }
+  return target
+}
+
+export async function readProjectFile(projectPath: string, relPath: string): Promise<string> {
+  const target = safeResolveProjectFile(projectPath, relPath)
+  if (isSecretOrExcluded(basename(target))) {
+    throw new Error('Reading sensitive or binary files is prohibited.')
+  }
+  return readFile(target, 'utf8')
+}
+
+export async function applyProjectFileEdit(
+  request: ProjectFileEditRequest
+): Promise<ProjectFileEditResult> {
+  try {
+    const { projectPath, filePath, newContent, searchSnippet, replaceSnippet } = request
+    if (!projectPath || !filePath) {
+      return { success: false, error: 'Project path and file path are required.' }
+    }
+    const target = safeResolveProjectFile(projectPath, filePath)
+    if (isSecretOrExcluded(basename(target))) {
+      return { success: false, error: 'Editing sensitive or excluded configuration files is prohibited.' }
+    }
+
+    let existingContent: string | null = null
+    try {
+      existingContent = await readFile(target, 'utf8')
+    } catch {
+      existingContent = null
+    }
+
+    let finalContent = ''
+    if (searchSnippet !== undefined && replaceSnippet !== undefined) {
+      if (existingContent === null) {
+        return { success: false, error: `File not found to apply patch: ${filePath}` }
+      }
+      const normExisting = existingContent.replace(/\r\n/g, '\n')
+      const normSearch = searchSnippet.replace(/\r\n/g, '\n').trim()
+      const normReplace = replaceSnippet.replace(/\r\n/g, '\n')
+
+      if (!normExisting.includes(normSearch)) {
+        return {
+          success: false,
+          error: `Could not find the target code snippet in ${filePath} to replace.`
+        }
+      }
+      finalContent = normExisting.replace(normSearch, normReplace)
+      if (existingContent.includes('\r\n')) {
+        finalContent = finalContent.replace(/\n/g, '\r\n')
+      }
+    } else if (newContent !== undefined) {
+      finalContent = newContent
+    } else {
+      return { success: false, error: 'No content or patch snippets provided for edit.' }
+    }
+
+    await mkdir(dirname(target), { recursive: true })
+
+    let backupPath: string | undefined
+    if (existingContent !== null) {
+      const backupFile = `${target}.devtex.bak`
+      await copyFile(target, backupFile)
+      backupPath = relative(projectPath, backupFile).replace(/\\/g, '/')
+    }
+
+    await writeFile(target, finalContent, 'utf8')
+    return {
+      success: true,
+      backupPath,
+      appliedPath: relative(projectPath, target).replace(/\\/g, '/')
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to apply file edit.'
+    }
+  }
+}
+
+export async function scanProjectForBugs(
+  projectPath: string,
+  aiChatCallback?: (prompt: string) => Promise<string>
+): Promise<ProjectBugScanResult> {
+  const allFiles = await collectFiles(projectPath, projectPath, 0, 150)
+  const codeExtensions = new Set([
+    '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs',
+    '.py', '.java', '.go', '.rs', '.cpp', '.c', '.h',
+    '.json', '.html', '.css', '.vue', '.svelte'
+  ])
+
+  const targetFiles = allFiles.filter((f) => {
+    const dot = f.lastIndexOf('.')
+    if (dot === -1) return false
+    const ext = f.slice(dot).toLowerCase()
+    return codeExtensions.has(ext) && !isSecretOrExcluded(basename(f))
+  })
+
+  const bugs: DetectedBug[] = []
+  let scannedCount = 0
+
+  for (const relPath of targetFiles.slice(0, 30)) {
+    const fullPath = join(projectPath, relPath)
+    let content = ''
+    try {
+      content = await readFile(fullPath, 'utf8')
+      scannedCount++
+    } catch {
+      continue
+    }
+
+    const lines = content.split('\n')
+    lines.forEach((line, idx) => {
+      const lineNum = idx + 1
+      const trimmed = line.trim()
+
+      if (/\beval\s*\(/.test(trimmed) && !trimmed.startsWith('//')) {
+        bugs.push({
+          id: `bug-eval-${relPath}-${lineNum}`,
+          file: relPath,
+          line: lineNum,
+          severity: 'critical',
+          title: 'Dangerous eval() Execution',
+          description: 'Use of eval() introduces severe security code injection vulnerabilities and prevents compiler optimization.',
+          suggestedFix: 'Replace eval() with standard JSON.parse() or dedicated parsing logic.',
+          snippet: trimmed
+        })
+      }
+
+      if (
+        /(api[_-]?key|secret|private[_-]?key|token|auth[_-]?token)\s*[:=]\s*['"`][A-Za-z0-9_-]{16,}['"`]/i.test(
+          trimmed
+        ) &&
+        !trimmed.startsWith('//')
+      ) {
+        bugs.push({
+          id: `bug-secret-${relPath}-${lineNum}`,
+          file: relPath,
+          line: lineNum,
+          severity: 'critical',
+          title: 'Exposed Hardcoded Secret/Token',
+          description: 'A hardcoded API key or secret was detected in source code. This risks exposure in version control.',
+          suggestedFix: 'Move secrets to environment variables or safe credential storage.',
+          snippet: trimmed
+        })
+      }
+
+      if (/\.innerHTML\s*=/.test(trimmed) && !trimmed.startsWith('//')) {
+        bugs.push({
+          id: `bug-xss-${relPath}-${lineNum}`,
+          file: relPath,
+          line: lineNum,
+          severity: 'warning',
+          title: 'Potential XSS via unescaped innerHTML',
+          description: 'Directly assigning to innerHTML can expose the application to cross-site scripting (XSS).',
+          suggestedFix: 'Use textContent, replaceChildren(), or sanitize HTML using a secure DOM sanitizer.',
+          snippet: trimmed
+        })
+      }
+
+      if (/catch\s*\([^)]*\)\s*\{\s*\}/.test(trimmed)) {
+        bugs.push({
+          id: `bug-catch-${relPath}-${lineNum}`,
+          file: relPath,
+          line: lineNum,
+          severity: 'warning',
+          title: 'Swallowed Exception (Empty Catch Block)',
+          description: 'Empty catch block silently ignores errors, hiding runtime failures and masking bugs.',
+          suggestedFix: 'Log the error or handle it gracefully rather than silently swallowing it.',
+          snippet: trimmed
+        })
+      }
+
+      if (
+        /(?<!await\s+)\b(readFile|writeFile|copyFile|readdir|stat)\s*\(/.test(trimmed) &&
+        !trimmed.startsWith('//') &&
+        !trimmed.includes('Promise.')
+      ) {
+        bugs.push({
+          id: `bug-async-${relPath}-${lineNum}`,
+          file: relPath,
+          line: lineNum,
+          severity: 'warning',
+          title: 'Unawaited Asynchronous File System Call',
+          description: 'File system asynchronous method called without await, leading to unhandled promises or race conditions.',
+          suggestedFix: 'Add await before the async call or handle with .then()/.catch().',
+          snippet: trimmed
+        })
+      }
+    })
+  }
+
+  if (aiChatCallback && targetFiles.length > 0) {
+    try {
+      const sampleFiles: Array<{ path: string; snippet: string }> = []
+      for (const rel of targetFiles.slice(0, 5)) {
+        try {
+          const raw = await readFile(join(projectPath, rel), 'utf8')
+          sampleFiles.push({ path: rel, snippet: raw.slice(0, 1800) })
+        } catch {
+          // ignore
+        }
+      }
+
+      if (sampleFiles.length > 0) {
+        const prompt = `You are an automated code bug scanner. Analyze the following code files for real bugs, edge-case crashes, logic flaws, memory leaks, and vulnerabilities:
+
+${sampleFiles.map((sf) => `--- File: ${sf.path} ---\n${sf.snippet}\n--- End of ${sf.path} ---`).join('\n\n')}
+
+Respond ONLY with a valid JSON array of objects with keys: id, file, line, severity ('critical'|'warning'|'info'), title, description, suggestedFix. Do not use markdown backticks around the JSON.`
+
+        const aiResponseText = await aiChatCallback(prompt)
+        const cleanJson = aiResponseText
+          .replace(/^```json\s*/i, '')
+          .replace(/^```\s*/i, '')
+          .replace(/\s*```$/i, '')
+          .trim()
+        const parsed = JSON.parse(cleanJson)
+        if (Array.isArray(parsed)) {
+          for (const item of parsed) {
+            if (item && item.title && item.file) {
+              bugs.push({
+                id: item.id || `ai-bug-${bugs.length + 1}`,
+                file: item.file,
+                line: typeof item.line === 'number' ? item.line : undefined,
+                severity:
+                  item.severity === 'critical' || item.severity === 'warning' || item.severity === 'info'
+                    ? item.severity
+                    : 'warning',
+                title: String(item.title),
+                description: String(item.description || ''),
+                suggestedFix: item.suggestedFix ? String(item.suggestedFix) : undefined
+              })
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[AI Deep Bug Scan Notice]', e)
+    }
+  }
+
+  const criticalCount = bugs.filter((b) => b.severity === 'critical').length
+  const warningCount = bugs.filter((b) => b.severity === 'warning').length
+  const summary =
+    bugs.length === 0
+      ? `Scan complete: ${scannedCount} files inspected. No critical bugs found!`
+      : `Scan complete: ${scannedCount} files inspected. Found ${bugs.length} issues (${criticalCount} critical, ${warningCount} warnings).`
+
+  return {
+    success: true,
+    bugs,
+    scannedFilesCount: scannedCount,
+    summary
+  }
+}
+

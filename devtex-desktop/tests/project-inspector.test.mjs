@@ -3,7 +3,8 @@ import assert from 'node:assert/strict'
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { inspectProject } from '../src/main/project-inspector.ts'
+import { inspectProject, applyProjectFileEdit, scanProjectForBugs } from '../src/main/project-inspector.ts'
+import { readFile } from 'node:fs/promises'
 
 test('inspectProject reads structure and relevant files while excluding secrets, .env, and node_modules', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'devtex-test-proj-'))
@@ -53,6 +54,64 @@ test('inspectProject reads structure and relevant files while excluding secrets,
     assert.doesNotMatch(result, /node_modules/)
     assert.doesNotMatch(result, /\.git/)
     assert.doesNotMatch(result, /dist\/bundle\.js/)
+  } finally {
+    await rm(dir, { recursive: true, force: true })
+  }
+})
+
+test('applyProjectFileEdit safely edits file and creates backup copy', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'devtex-edit-proj-'))
+
+  try {
+    const file = join(dir, 'main.ts')
+    await writeFile(file, 'const port = 3000;\nconsole.log(port);')
+
+    const editRes = await applyProjectFileEdit({
+      projectPath: dir,
+      filePath: 'main.ts',
+      searchSnippet: 'const port = 3000;',
+      replaceSnippet: 'const port = 8080;'
+    })
+
+    assert.equal(editRes.success, true)
+    const updated = await readFile(file, 'utf8')
+    assert.equal(updated, 'const port = 8080;\nconsole.log(port);')
+
+    // Check backup was created
+    const backupContent = await readFile(join(dir, 'main.ts.devtex.bak'), 'utf8')
+    assert.equal(backupContent, 'const port = 3000;\nconsole.log(port);')
+
+    // Prohibit path traversal
+    const badEdit = await applyProjectFileEdit({
+      projectPath: dir,
+      filePath: '../outside.txt',
+      newContent: 'bad'
+    })
+    assert.equal(badEdit.success, false)
+    assert.match(badEdit.error, /Security violation|prohibited/)
+  } finally {
+    await rm(dir, { recursive: true, force: true })
+  }
+})
+
+test('scanProjectForBugs detects eval, secrets, and swallowed exceptions', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'devtex-bug-proj-'))
+
+  try {
+    await writeFile(join(dir, 'unsafe.js'), `
+      const x = eval('2 + 2');
+      const api_key = "AIzaSyD-1234567890abcdefghijklm";
+      try {
+        doSomething();
+      } catch (e) {}
+    `)
+
+    const res = await scanProjectForBugs(dir)
+    assert.equal(res.success, true)
+    assert.ok(res.bugs.length >= 3)
+    assert.ok(res.bugs.some((b) => b.title.includes('eval')))
+    assert.ok(res.bugs.some((b) => b.title.includes('Secret')))
+    assert.ok(res.bugs.some((b) => b.title.includes('Swallowed Exception')))
   } finally {
     await rm(dir, { recursive: true, force: true })
   }
