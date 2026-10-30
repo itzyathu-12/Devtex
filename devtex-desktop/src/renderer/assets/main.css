@@ -3125,3 +3125,6 @@ textarea:focus-visible {
  .report-metrics { grid-template-columns: 1fr; }
  .report-counts { align-items: flex-start; }
 }
+
+/* Ensure inactive workspace views respect the HTML hidden attribute. */
+.workspace-page[hidden], #dashboard-view[hidden], #settings-view[hidden], #ai-chat-view[hidden], #profile-view[hidden] { display: none !important; }
