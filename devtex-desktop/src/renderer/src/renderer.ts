@@ -41,6 +41,9 @@ let currentGitHubStatus: GitHubConnectionStatus = { connected: false, connecting
 let currentGitHubProfile: GitHubProfile | null = null
 let currentGitHubRepositories: GitHubRepository[] = []
 let activeWorkspacePage: WorkspacePage = 'Dashboard'
+let workspaceProjects: WorkspaceProject[] = []
+type ScanReport = { id: number; projectName: string; projectPath: string; summary: string; issueCount: number; critical: number; warning: number; info: number; createdAt: Date }
+const scanReports: ScanReport[] = []
 let currentRuntimeInfo: AppRuntimeInfo | null = null
 let currentPreferences: AppPreferences = {
   reduceMotion: false,
@@ -111,6 +114,7 @@ function init(): void {
     setupNavigation()
     setupProjects()
     setupTestingEngine()
+    setupWorkspacePages()
     setupGitHubRepositories()
     setupAuthentication()
     setupProfileMenu()
@@ -168,10 +172,10 @@ function setupNavigation(): void {
   const buttons = document.querySelectorAll<HTMLButtonElement>('.nav-item')
   const descriptions: Record<string, string> = {
     Dashboard: 'Build, test, and improve your software from one workspace.',
-    Projects: 'Manage the projects you add to your workspace.',
+    Projects: 'Browse, search, and manage your local development projects.',
     'AI Chat': 'Chat, explore local projects, and review code with AI.',
-    'Testing Engine': 'Explore the future of automated software testing.',
-    Reports: 'Review testing results as the engine becomes available.',
+    'Testing Engine': 'Run DEVTEX static defect analysis against a selected project.',
+    Reports: 'Review scan history and findings captured during this session.',
     Profile: 'View your connected GitHub profile and repositories.',
     Settings: 'Your DEVTEX workspace preferences.'
   }
@@ -199,6 +203,9 @@ function showPage(page: WorkspacePage, description = ''): void {
   const title = document.getElementById('page-title')
   const subtitle = document.getElementById('page-subtitle')
   const dashboard = document.getElementById('dashboard-view')
+  const projectsView = document.getElementById('projects-view')
+  const testingView = document.getElementById('testing-view')
+  const reportsView = document.getElementById('reports-view')
   const settings = document.getElementById('settings-view')
   const aiChatView = document.getElementById('ai-chat-view')
   const profileView = document.getElementById('profile-view')
@@ -211,11 +218,16 @@ function showPage(page: WorkspacePage, description = ''): void {
   }
   if (subtitle) subtitle.textContent = description
 
-  const isDashboard = page === 'Dashboard' || page === 'Projects' || page === 'Testing Engine' || page === 'Reports'
-  if (dashboard) dashboard.hidden = !isDashboard
+  if (dashboard) dashboard.hidden = page !== 'Dashboard'
+  if (projectsView) projectsView.hidden = page !== 'Projects'
+  if (testingView) testingView.hidden = page !== 'Testing Engine'
+  if (reportsView) reportsView.hidden = page !== 'Reports'
   if (settings) settings.hidden = page !== 'Settings'
   if (aiChatView) aiChatView.hidden = page !== 'AI Chat'
   if (profileView) profileView.hidden = page !== 'Profile'
+
+  if (page === 'Projects') renderWorkspaceProjectsPage()
+  if (page === 'Reports') renderReportsPage()
 
   if (page === 'AI Chat') {
     renderAIChatPage()
@@ -313,6 +325,8 @@ function setupProjects(): void {
         if (window.confirm(`Remove "${project.name}" from your DEVTEX workspace?`)) {
           try {
             projects = await window.api.removeProject(project.id)
+            workspaceProjects = projects
+            renderWorkspaceProjectsPage()
             if (activeAIProjectPath === project.path) {
               activeAIProjectPath = null
             }
@@ -336,7 +350,9 @@ function setupProjects(): void {
       const updated = await window.api.chooseAndAddProject()
       if (!updated) return
       projects = updated
+      workspaceProjects = projects
       renderProjects()
+      renderWorkspaceProjectsPage()
       const newest = updated[0]
       if (newest) {
         addActivity(`Added project: ${newest.name}`, newest.path)
@@ -357,11 +373,136 @@ function setupProjects(): void {
     .getProjects()
     .then((loaded) => {
       projects = loaded
+      workspaceProjects = projects
       renderProjects()
+      renderWorkspaceProjectsPage()
     })
     .catch(() => {
       renderProjects()
     })
+}
+
+
+function setupWorkspacePages(): void {
+  const enginePanel = document.querySelector<HTMLElement>('.engine-panel')
+  const engineHost = document.getElementById('testing-engine-content')
+  if (enginePanel && engineHost) engineHost.append(enginePanel)
+
+  document.getElementById('projects-add')?.addEventListener('click', () => {
+    document.getElementById('new-project')?.click()
+  })
+  const search = document.getElementById('projects-search') as HTMLInputElement | null
+  search?.addEventListener('input', () => renderWorkspaceProjectsPage(search.value))
+  renderWorkspaceProjectsPage()
+  renderReportsPage()
+}
+
+function renderWorkspaceProjectsPage(query = ''): void {
+  const list = document.getElementById('workspace-project-list')
+  const count = document.getElementById('workspace-project-count')
+  if (!list) return
+  if (count) count.textContent = String(workspaceProjects.length).padStart(2, '0')
+  list.replaceChildren()
+  const normalized = query.trim().toLowerCase()
+  const filtered = workspaceProjects.filter((project) =>
+    project.name.toLowerCase().includes(normalized) || project.path.toLowerCase().includes(normalized)
+  )
+  if (filtered.length === 0) {
+    const empty = document.createElement('div')
+    empty.className = 'workspace-empty'
+    const heading = document.createElement('h3')
+    heading.textContent = workspaceProjects.length ? 'No matching projects' : 'No projects in this workspace'
+    const detail = document.createElement('p')
+    detail.textContent = workspaceProjects.length
+      ? 'Try another project name or path.'
+      : 'Add a local repository or project folder to start working with DEVTEX.'
+    empty.append(heading, detail)
+    list.append(empty)
+    return
+  }
+  filtered.forEach((project) => {
+    const row = document.createElement('article')
+    row.className = 'workspace-project-row'
+    const identity = document.createElement('div')
+    identity.className = 'workspace-project-identity'
+    const icon = document.createElement('span')
+    icon.className = 'workspace-project-icon'
+    icon.textContent = '</>'
+    const copy = document.createElement('div')
+    const name = document.createElement('strong')
+    name.textContent = project.name
+    const path = document.createElement('code')
+    path.textContent = project.path
+    path.title = project.path
+    copy.append(name, path)
+    identity.append(icon, copy)
+    const actions = document.createElement('div')
+    actions.className = 'workspace-project-actions'
+    const scan = document.createElement('button')
+    scan.type = 'button'
+    scan.className = 'button button-secondary'
+    scan.textContent = 'Test project'
+    scan.addEventListener('click', () => {
+      showPage('Testing Engine', 'Run DEVTEX static defect analysis against a selected project.')
+      const selector = document.getElementById('engine-project-select') as HTMLSelectElement | null
+      if (selector) selector.value = project.path
+    })
+    const explore = document.createElement('button')
+    explore.type = 'button'
+    explore.className = 'button button-secondary'
+    explore.textContent = 'Explore with AI'
+    explore.addEventListener('click', () => {
+      activeAIProjectPath = project.path
+      showPage('AI Chat', 'Chat, explore local projects, and review code with AI.')
+    })
+    actions.append(scan, explore)
+    row.append(identity, actions)
+    list.append(row)
+  })
+}
+
+function renderReportsPage(): void {
+  const list = document.getElementById('reports-list')
+  const total = document.getElementById('reports-total')
+  const issues = document.getElementById('reports-issues')
+  if (!list) return
+  if (total) total.textContent = String(scanReports.length).padStart(2, '0')
+  if (issues) issues.textContent = String(scanReports.reduce((sum, report) => sum + report.issueCount, 0))
+  list.replaceChildren()
+  if (!scanReports.length) {
+    const empty = document.createElement('div')
+    empty.className = 'workspace-empty'
+    const heading = document.createElement('h3')
+    heading.textContent = 'No scan reports yet'
+    const detail = document.createElement('p')
+    detail.textContent = 'Run a project scan in Testing Engine. Completed scans will appear here for this app session.'
+    empty.append(heading, detail)
+    list.append(empty)
+    return
+  }
+  [...scanReports].reverse().forEach((report) => {
+    const row = document.createElement('article')
+    row.className = 'report-row'
+    const main = document.createElement('div')
+    const title = document.createElement('strong')
+    title.textContent = report.projectName
+    const summary = document.createElement('p')
+    summary.textContent = report.summary
+    const time = document.createElement('time')
+    time.textContent = report.createdAt.toLocaleString()
+    main.append(title, summary, time)
+    const counts = document.createElement('div')
+    counts.className = 'report-counts'
+    const total = document.createElement('strong')
+    total.textContent = String(report.issueCount)
+    const label = document.createElement('span')
+    label.textContent = 'findings'
+    const severity = document.createElement('small')
+    severity.textContent = `Critical ${report.critical} · Warning ${report.warning} · Info ${report.info}`
+    counts.append(total, label, severity)
+    row.append(main, counts)
+    list.append(row)
+  })
 }
 
 interface CodeEditBlock {
@@ -684,6 +825,18 @@ function setupTestingEngine(): void {
       const scanRes = await window.api.scanProjectForBugs(targetPath)
       result.replaceChildren()
 
+      scanReports.push({
+        id: Date.now(),
+        projectName: projectSelect?.selectedOptions[0]?.textContent?.replace(/^Project: /, '') || targetPath.split(/[\\\\/]/).filter(Boolean).pop() || targetPath,
+        projectPath: targetPath,
+        summary: scanRes.summary,
+        issueCount: scanRes.bugs.length,
+        critical: scanRes.bugs.filter((bug) => bug.severity === 'critical').length,
+        warning: scanRes.bugs.filter((bug) => bug.severity === 'warning').length,
+        info: scanRes.bugs.filter((bug) => bug.severity === 'info').length,
+        createdAt: new Date()
+      })
+      renderReportsPage()
       const summaryDiv = document.createElement('div')
       summaryDiv.style.marginBottom = '12px'
       summaryDiv.style.padding = '8px 12px'
