@@ -1,0 +1,20 @@
+{
+  "name": "devtex-ide",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DEVTEX IDE - intent-first local development environment",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "electron": "^44.7.2",
+    "electron-vite": "^6.0.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.4"
+  }
+}
