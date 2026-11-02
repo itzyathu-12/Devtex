@@ -1,32 +1,54 @@
 # DEVTEX IDE
 
-DEVTEX IDE is an intent-first local development workspace. It keeps the project goal visible beside the files and provides a small set of real, local development actions.
+DEVTEX IDE is a standalone desktop application built with **Electron + electron-vite + Vite + TypeScript**. It is a separate product from DEVTEX Desktop, with its own app entry point and workspace.
 
-## Start
+## Requirements
 
-Open `index.html` in a recent Chromium-based browser. No package installation or external runtime download is required.
+- Node.js 20.19+ or 22.12+
+- npm
+- Windows, macOS, or Linux
 
-For local folder access, use a browser that supports the File System Access API (such as current Chrome or Edge) and open the page from a secure context. The built-in browser workspace works without folder access.
+## Run locally
 
-## Working features
+From this directory:
 
-- Open a local project directory and read its files recursively.
-- Browse and switch between files; create files and folders.
-- Edit source files and save changes back to selected local file handles.
-- Keep a browser-local workspace when no project folder is connected.
-- Export the current workspace into a selected directory (or JSON where folder export is unavailable).
-- Execute JavaScript files in a short-lived Web Worker with captured console output and a time limit.
-- Run simple test files named `*.test.js`, `*.spec.js`, or `tests.js` using the included `test(name, fn)` and `assert(condition, message)` helpers.
-- Run lightweight heuristic inspections for common source-code issues.
-- Pin a workspace intent locally and keep it visible while editing.
-- Keyboard shortcuts: Ctrl/Cmd+S to save and Ctrl/Cmd+Enter to run JavaScript.
+```bash
+npm install
+npm run dev
+```
 
-## Runtime and limitations
+Build the application:
 
-This is a browser-based development workspace, not yet a native Electron IDE. JavaScript execution happens in a Web Worker with a timeout; it is not a hardened security boundary for running untrusted code. Only JavaScript files are executed. TypeScript, Python, native debugging, language servers, Git operations, AI-provider integration, and DEVTEX Desktop/CLI runtime communication are not implemented in this release. Static inspection is heuristic and is not a compiler or full linter.
+```bash
+npm run build
+```
 
-When a local folder is connected, file writes use the browser's file-system permission model. Browser-local workspace data and the pinned intent are stored in localStorage on that browser profile.
+The build output is written by electron-vite to the `out/` directory. Packaging installers can be added with electron-builder once platform-specific release settings are configured.
 
-## Product principle
+## Current desktop capabilities
 
-DEVTEX keeps intent next to implementation. The goal is to make the reason for a change, the code that expresses it, and the evidence that it works part of one continuous workflow.
+- Native Electron window with context isolation, sandboxing, and Node integration disabled in the renderer.
+- Open a local project directory through the native folder picker.
+- Recursively browse project files, with generated dependency and Git internals excluded from the explorer.
+- Read and edit text files, then save changes directly to the selected project directory.
+- Create files and folders, including nested paths.
+- Filter the project explorer.
+- Keep a project outcome in the local Intent Space using browser-profile storage.
+- Keyboard shortcut: Ctrl/Cmd + S to save the active file.
+
+## Architecture
+
+- `src/main`: Electron main process and filesystem operations.
+- `src/preload`: narrow, typed IPC bridge exposed through contextBridge.
+- `src/renderer`: Vite-rendered desktop interface.
+- `electron.vite.config.ts`: electron-vite configuration, matching the toolchain used by DEVTEX Desktop.
+
+Filesystem access is performed in the main process. The renderer does not receive Node.js access; it calls the limited preload API. File paths are resolved and checked against the opened project root before read/write/create operations.
+
+## Not implemented yet
+
+This is the Electron/Vite foundation and first native workspace implementation, not a finished full-featured IDE. It does not yet include a language server, syntax-highlighted editor, integrated terminal, debugger, Git UI, test runner, AI coding/investigation engine, or DEVTEX Desktop/CLI runtime communication. Those should be added as separate tested capabilities rather than represented as already working.
+
+## Product direction
+
+DEVTEX IDE should become an intent-first development environment: the goal behind a change, the implementation, and evidence that the change works should live in one continuous workflow.
