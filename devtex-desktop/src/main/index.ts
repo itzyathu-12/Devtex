@@ -15,7 +15,10 @@ import {
   addProject,
   removeProject,
   getRuntimeInfo,
-  savePreferences
+  savePreferences,
+  getIgnoredBugs,
+  addIgnoredBug,
+  removeIgnoredBug
 } from './settings'
 import {
   chooseProjectFolder,
@@ -317,7 +320,33 @@ ipcMain.handle('project:scan-bugs', async (event, projectPath: unknown) => {
   } catch {
     // Fall back to heuristic scanning without failing
   }
-  return scanProjectForBugs(projectPath.trim(), aiChatCallback);
+  const ignored = await getIgnoredBugs();
+  return scanProjectForBugs(projectPath.trim(), aiChatCallback, ignored);
+});
+
+ipcMain.handle('bugs:get-ignored', async (event) => {
+  assertTrustedSender(event);
+  return getIgnoredBugs();
+});
+
+ipcMain.handle('bugs:ignore', async (event, identifiers: unknown) => {
+  assertTrustedSender(event);
+  if (typeof identifiers === 'string') {
+    return addIgnoredBug(identifiers);
+  }
+  if (Array.isArray(identifiers)) {
+    const valid = identifiers.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+    return addIgnoredBug(valid);
+  }
+  throw new Error('Invalid bug identifier to ignore.');
+});
+
+ipcMain.handle('bugs:unignore', async (event, identifier: unknown) => {
+  assertTrustedSender(event);
+  if (typeof identifier !== 'string') {
+    throw new Error('Invalid bug identifier to unignore.');
+  }
+  return removeIgnoredBug(identifier);
 });
 
 ipcMain.on('auth:renderer-ready', (event) => {

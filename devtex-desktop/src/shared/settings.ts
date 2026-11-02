@@ -32,6 +32,7 @@ export interface AppPreferences {
   aiProvider: AIProviderId
   providerModels: Record<AIProviderId, string>
   projects?: WorkspaceProject[]
+  ignoredBugs?: string[]
 }
 
 export interface GeminiStatus {

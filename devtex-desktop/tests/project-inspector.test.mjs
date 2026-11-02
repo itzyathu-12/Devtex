@@ -112,7 +112,21 @@ test('scanProjectForBugs detects eval, secrets, and swallowed exceptions', async
     assert.ok(res.bugs.some((b) => b.title.includes('eval')))
     assert.ok(res.bugs.some((b) => b.title.includes('Secret')))
     assert.ok(res.bugs.some((b) => b.title.includes('Swallowed Exception')))
+
+    // Verify ignored bugs filtering
+    const evalBug = res.bugs.find((b) => b.title.includes('eval'))
+    assert.ok(evalBug)
+    const filteredRes = await scanProjectForBugs(dir, undefined, [evalBug.id])
+    assert.equal(filteredRes.bugs.some((b) => b.title.includes('eval')), false)
+    assert.match(filteredRes.summary, /ignored issue/)
+
+    // Verify file::title signature ignore
+    const secretBug = res.bugs.find((b) => b.title.includes('Secret'))
+    assert.ok(secretBug)
+    const keyFilteredRes = await scanProjectForBugs(dir, undefined, [`${secretBug.file}::${secretBug.title}`])
+    assert.equal(keyFilteredRes.bugs.some((b) => b.title.includes('Secret')), false)
   } finally {
     await rm(dir, { recursive: true, force: true })
   }
 })
+

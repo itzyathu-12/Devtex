@@ -1,449 +1,438 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://avatars.githubusercontent.com https://*.githubusercontent.com https://github.com; connect-src 'self' https://kdmifuuwifhuuqkfnyzn.supabase.co"
-    />
-    <meta name="theme-color" content="#090b10" />
-    <title>DEVTEX — Developer Workspace</title>
-    <link href="./assets/main.css" rel="stylesheet" />
-  </head>
 
-  <body>
-    <div class="app-shell">
-      <aside class="sidebar">
-        <div class="brand">
-          <img class="brand-logo" src="./assets/logo.png" alt="DEVTEX" />
-          <div>
-            <div class="brand-name">DEVTEX</div>
-            <div class="brand-caption">DEVELOPER WORKSPACE</div>
-          </div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://avatars.githubusercontent.com https://*.githubusercontent.com https://github.com; connect-src 'self' https://kdmifuuwifhuuqkfnyzn.supabase.co" />
+  <meta name="theme-color" content="#090b10" />
+  <title>DEVTEX — Developer Workspace</title>
+  <link href="./assets/main.css" rel="stylesheet" />
+</head>
+
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <img class="brand-logo" src="./assets/logo.png" alt="DEVTEX" />
+        <div>
+          <div class="brand-name">DEVTEX</div>
+          <div class="brand-caption">DEVELOPER WORKSPACE</div>
+        </div>
+      </div>
+
+      <div class="nav-label">WORKSPACE</div>
+      <nav class="navigation">
+        <button class="nav-item active" data-page="Dashboard">
+          <span class="nav-icon">◫</span> Dashboard
+        </button>
+        <button class="nav-item" data-page="Projects">
+          <span class="nav-icon">▧</span> Projects
+        </button>
+        <button class="nav-item" data-page="AI Chat">
+          <span class="nav-icon">✦</span> AI Chat
+        </button>
+        <button class="nav-item" data-page="Testing Engine">
+          <span class="nav-icon">⌘</span> Testing Engine
+          <span class="nav-count">BETA</span>
+        </button>
+        <button class="nav-item" data-page="Reports">
+          <span class="nav-icon">▤</span> Reports
+        </button>
+      </nav>
+
+      <div class="nav-label tools-label">TOOLS</div>
+      <nav class="navigation">
+        <button class="nav-item" data-page="Profile">
+          <span class="nav-icon">👤</span> Profile
+        </button>
+        <button class="nav-item" data-page="Settings">
+          <span class="nav-icon">⚙</span> Settings
+        </button>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <div class="system-indicator"><span></span> Desktop environment</div>
+        <div class="sidebar-version">DEVELOPMENT BUILD</div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div class="breadcrumb">
+          <span>DEVTEX</span>
+          <span class="slash">/</span>
+          <span id="breadcrumb-page">Dashboard</span>
         </div>
 
-        <div class="nav-label">WORKSPACE</div>
-        <nav class="navigation">
-          <button class="nav-item active" data-page="Dashboard">
-            <span class="nav-icon">◫</span> Dashboard
+        <div class="topbar-right">
+          <button type="button" class="button button-secondary auth-button" id="sign-in">
+            Sign in
           </button>
-          <button class="nav-item" data-page="Projects">
-            <span class="nav-icon">▧</span> Projects
-          </button>
-          <button class="nav-item" data-page="AI Chat">
-            <span class="nav-icon">✦</span> AI Chat
-          </button>
-          <button class="nav-item" data-page="Testing Engine">
-            <span class="nav-icon">⌘</span> Testing Engine
-            <span class="nav-count">BETA</span>
-          </button>
-          <button class="nav-item" data-page="Reports">
-            <span class="nav-icon">▤</span> Reports
-          </button>
-        </nav>
 
-        <div class="nav-label tools-label">TOOLS</div>
-        <nav class="navigation">
-          <button class="nav-item" data-page="Profile">
-            <span class="nav-icon">👤</span> Profile
+          <button type="button" class="button button-primary auth-button" id="connect-github">
+            <span>⌘</span> Connect GitHub
           </button>
-          <button class="nav-item" data-page="Settings">
-            <span class="nav-icon">⚙</span> Settings
-          </button>
-        </nav>
 
-        <div class="sidebar-bottom">
-          <div class="system-indicator"><span></span> Desktop environment</div>
-          <div class="sidebar-version">DEVELOPMENT BUILD</div>
-        </div>
-      </aside>
-
-      <main class="main-content">
-        <header class="topbar">
-          <div class="breadcrumb">
-            <span>DEVTEX</span>
-            <span class="slash">/</span>
-            <span id="breadcrumb-page">Dashboard</span>
-          </div>
-
-          <div class="topbar-right">
-            <button type="button" class="button button-secondary auth-button" id="sign-in">
-              Sign in
+          <div class="profile-control">
+            <button class="avatar" id="user-avatar" type="button" aria-label="Open account and developer settings"
+              aria-expanded="false" aria-controls="profile-menu">
+              <svg class="avatar-fallback-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
             </button>
-
-            <button type="button" class="button button-primary auth-button" id="connect-github">
-              <span>⌘</span> Connect GitHub
-            </button>
-
-            <div class="profile-control">
-              <button
-                class="avatar"
-                id="user-avatar"
-                type="button"
-                aria-label="Open account and developer settings"
-                aria-expanded="false"
-                aria-controls="profile-menu"
-              >
-                <svg class="avatar-fallback-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                  <circle cx="12" cy="7" r="4"></circle>
-                </svg>
-              </button>
-              <div
-                class="profile-menu"
-                id="profile-menu"
-                role="menu"
-                aria-labelledby="user-avatar"
-                hidden
-              >
-                <div class="profile-menu-account" role="group" aria-label="Signed-in account">
-                  <div>
-                    <strong id="profile-menu-identity">Signed out</strong>
-                    <span id="profile-menu-status">Supabase account</span>
-                  </div>
-                </div>
-                <div class="profile-menu-divider" role="separator"></div>
-                <button type="button" role="menuitem" id="menu-view-profile">
-                  👤 Developer Profile
-                </button>
-                <button type="button" role="menuitem" id="menu-open-chat">
-                  ✦ AI Chat
-                </button>
-                <div class="profile-menu-divider" role="separator"></div>
-                <button type="button" role="menuitem" data-setting-section="account">
-                  Account
-                </button>
-                <button type="button" role="menuitem" data-setting-section="api">
-                  API Configuration
-                </button>
-                <button type="button" role="menuitem" data-setting-section="runtime">
-                  Environment &amp; Runtime
-                </button>
-                <button type="button" role="menuitem" data-setting-section="integrations">
-                  Integrations
-                </button>
-                <button type="button" role="menuitem" data-setting-section="preferences">
-                  Preferences
-                </button>
-                <button type="button" role="menuitem" data-setting-section="diagnostics">
-                  Security &amp; Diagnostics
-                </button>
-                <button type="button" role="menuitem" data-setting-section="about">
-                  About DEVTEX
-                </button>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        <section class="page-content">
-          <div id="dashboard-view">
-            <div class="welcome-row">
-              <div>
-                <div class="eyebrow">YOUR DEVELOPMENT COMMAND CENTER</div>
-                <h1 id="page-title">Welcome to <span>DEVTEX.</span></h1>
-                <p class="subtitle" id="page-subtitle">
-                  Build, test, and improve your software from one workspace.
-                </p>
-              </div>
-
-              <button type="button" class="button button-primary" id="new-project">
-                <span>＋</span> New project
-              </button>
-            </div>
-
-            <div class="section-heading">
-              <h2>Overview</h2>
-              <span class="muted">YOUR WORKSPACE AT A GLANCE</span>
-            </div>
-
-            <div class="stats-grid">
-              <article class="stat-card">
-                <div class="stat-top">
-                  <span class="stat-label">Projects</span>
-                  <span class="stat-icon purple">▧</span>
-                </div>
-                <div class="stat-value" id="project-count">00</div>
-                <div class="stat-foot">Projects added to your workspace</div>
-              </article>
-
-              <article class="stat-card">
-                <div class="stat-top">
-                  <span class="stat-label">Tests executed</span>
-                  <span class="stat-icon green">⌘</span>
-                </div>
-                <div class="stat-value">—</div>
-                <div class="stat-foot">Testing engine not connected</div>
-              </article>
-
-              <article class="stat-card">
-                <div class="stat-top">
-                  <span class="stat-label">Issues detected</span>
-                  <span class="stat-icon orange">◇</span>
-                </div>
-                <div class="stat-value">—</div>
-                <div class="stat-foot">No scans have been performed</div>
-              </article>
-            </div>
-
-            <div class="content-grid">
-              <section class="panel project-panel">
-                <div class="panel-heading">
-                  <div>
-                    <h2>Your projects</h2>
-                    <p>Choose a project to get started.</p>
-                  </div>
-                  <button type="button" class="text-button" id="view-projects">View all ↗</button>
-                </div>
-
-                <div id="project-list" class="project-list">
-                  <div class="empty-state">
-                    <div class="empty-icon">⌘</div>
-                    <h3>Your workspace starts here</h3>
-                    <p>Add a local project to begin building with DEVTEX.</p>
-                    <button type="button" class="button button-secondary" id="add-first-project">
-                      ＋ Add your first project
-                    </button>
-                  </div>
-                </div>
-              </section>
-
-              <section class="panel engine-panel">
-                <div class="panel-heading">
-                  <div>
-                    <h2>Testing Engine</h2>
-                    <p>Automated software bug scanner</p>
-                  </div>
-                  <span class="status-pill"> <span></span> ACTIVE SCANNER </span>
-                </div>
-
-                <div class="engine-graphic">
-                  <div class="engine-orbit orbit-one"></div>
-                  <div class="engine-orbit orbit-two"></div>
-                  <div class="engine-core">
-                    <img class="engine-logo" src="./assets/logo.png" alt="DEVTEX" />
-                  </div>
-                </div>
-
-                <h3 class="engine-title">Automated Bug Detection</h3>
-                <p class="engine-description">
-                  Inspect project source files to discover bugs, security vulnerabilities, unhandled errors, and code defects.
-                </p>
-
-                <div style="margin-bottom: 12px; width: 100%;">
-                  <select id="engine-project-select" style="width: 100%; min-height: 34px; padding: 0 10px; border: 1px solid #393544; border-radius: 6px; color: #e8eaf2; background: #0b0d13; font-size: 11px;">
-                    <option value="">Select project to scan...</option>
-                  </select>
-                </div>
-
-                <button type="button" class="button button-primary full-width" id="run-scan">
-                  Scan Project for Bugs 🔍
-                </button>
-
-                <p class="demo-note">AUTOMATED CODE &amp; AI BUG DETECTION ENGINE</p>
-                <div id="scan-result" class="scan-result" role="status"></div>
-              </section>
-            </div>
-
-            <section
-              class="panel github-repositories-panel"
-              aria-labelledby="github-repositories-title"
-            >
-              <div class="panel-heading">
+            <div class="profile-menu" id="profile-menu" role="menu" aria-labelledby="user-avatar" hidden>
+              <div class="profile-menu-account" role="group" aria-label="Signed-in account">
                 <div>
-                  <h2 id="github-repositories-title">GitHub repositories</h2>
-                  <p id="github-connection-label" role="status">Not connected</p>
-                </div>
-                <div class="github-repository-actions">
-                  <button
-                    type="button"
-                    class="button button-secondary"
-                    id="github-refresh"
-                    disabled
-                  >
-                    Refresh
-                  </button>
-                  <button
-                    type="button"
-                    class="button button-secondary"
-                    id="github-disconnect"
-                    disabled
-                  >
-                    Disconnect
-                  </button>
+                  <strong id="profile-menu-identity">Signed out</strong>
+                  <span id="profile-menu-status">Supabase account</span>
                 </div>
               </div>
-              <div class="github-repository-toolbar">
-                <input
-                  id="github-repository-search"
-                  type="search"
-                  placeholder="Search repositories"
-                  aria-label="Search GitHub repositories"
-                  disabled
-                />
-                <span id="github-repository-count" class="muted"></span>
-              </div>
-              <p id="github-repository-message" class="github-repository-message" role="status">
-                Connect GitHub to list public and private repositories available to your account.
+              <div class="profile-menu-divider" role="separator"></div>
+              <button type="button" role="menuitem" id="menu-view-profile">
+                👤 Developer Profile
+              </button>
+              <button type="button" role="menuitem" id="menu-open-chat">
+                ✦ AI Chat
+              </button>
+              <div class="profile-menu-divider" role="separator"></div>
+              <button type="button" role="menuitem" data-setting-section="account">
+                Account
+              </button>
+              <button type="button" role="menuitem" data-setting-section="api">
+                API Configuration
+              </button>
+              <button type="button" role="menuitem" data-setting-section="runtime">
+                Environment &amp; Runtime
+              </button>
+              <button type="button" role="menuitem" data-setting-section="integrations">
+                Integrations
+              </button>
+              <button type="button" role="menuitem" data-setting-section="preferences">
+                Preferences
+              </button>
+              <button type="button" role="menuitem" data-setting-section="diagnostics">
+                Security &amp; Diagnostics
+              </button>
+              <button type="button" role="menuitem" data-setting-section="about">
+                About DEVTEX
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <section class="page-content">
+        <div id="dashboard-view">
+          <div class="welcome-row">
+            <div>
+              <div class="eyebrow">YOUR DEVELOPMENT COMMAND CENTER</div>
+              <h1 id="page-title">Welcome to <span>DEVTEX.</span></h1>
+              <p class="subtitle" id="page-subtitle">
+                Build, test, and improve your software from one workspace.
               </p>
-              <div
-                id="github-repository-list"
-                class="github-repository-list"
-                aria-live="polite"
-              ></div>
-            </section>
+            </div>
 
-            <section class="panel activity-panel">
-              <div class="panel-heading">
-                <div>
-                  <h2>Recent activity</h2>
-                  <p>What's happening in your workspace</p>
-                </div>
-                <span class="muted">LATEST</span>
-              </div>
-
-              <div id="activity-list" class="activity-list">
-                <div class="activity-row">
-                  <span class="activity-dot purple-dot"></span>
-                  <div class="activity-copy">
-                    <strong>DEVTEX workspace initialized</strong>
-                    <span>Your local developer workspace is ready.</span>
-                  </div>
-                  <time>JUST NOW</time>
-                </div>
-              </div>
-            </section>
-
+            <button type="button" class="button button-primary" id="new-project">
+              <span>＋</span> New project
+            </button>
           </div>
 
+          <div class="section-heading">
+            <h2>Overview</h2>
+            <span class="muted">YOUR WORKSPACE AT A GLANCE</span>
+          </div>
 
-          <section class="workspace-page" id="projects-view" hidden>
-            <header class="workspace-page-heading">
-              <div><div class="eyebrow">PROJECT WORKSPACE</div><h1>Projects</h1><p class="subtitle">Your local codebases, ready to inspect and work on.</p></div>
-              <button type="button" class="button button-primary" id="projects-add">＋ Add project</button>
-            </header>
-            <div class="workspace-toolbar panel">
-              <div><span class="workspace-kicker">REGISTERED PROJECTS</span><strong id="workspace-project-count">00</strong></div>
-              <input id="projects-search" type="search" placeholder="Search by project name or path" aria-label="Search projects" />
-            </div>
-            <div id="workspace-project-list" class="workspace-project-list"></div>
-          </section>
-
-          <section class="workspace-page" id="testing-view" hidden>
-            <header class="workspace-page-heading"><div><div class="eyebrow">ANALYSIS WORKSPACE</div><h1>Testing Engine</h1><p class="subtitle">Select a project and run the current DEVTEX static defect scanner.</p></div><span class="workspace-engine-status">SCANNER AVAILABLE</span></header>
-            <div id="testing-engine-content" class="testing-engine-content"></div>
-          </section>
-
-          <section class="workspace-page" id="reports-view" hidden>
-            <header class="workspace-page-heading"><div><div class="eyebrow">QUALITY &amp; INSIGHTS</div><h1>Scan Reports</h1><p class="subtitle">A session history of completed project scans and their findings.</p></div></header>
-            <div class="report-metrics">
-              <article class="panel"><span>SCANS THIS SESSION</span><strong id="reports-total">00</strong></article>
-              <article class="panel"><span>TOTAL FINDINGS</span><strong id="reports-issues">0</strong></article>
-            </div>
-            <div id="reports-list" class="reports-list"></div>
-            <p class="reports-note">Reports are kept in memory for this app session only. They are not yet saved to disk.</p>
-          </section>
-
-          <section class="settings-view" id="settings-view" aria-labelledby="settings-title" hidden>
-            <header class="settings-heading">
-              <div>
-                <div class="eyebrow">DEVTEX CONTROL CENTER</div>
-                <h1 id="settings-title">Developer settings</h1>
-                <p class="subtitle" id="settings-description">
-                  Manage your account and application preferences.
-                </p>
+          <div class="stats-grid">
+            <article class="stat-card">
+              <div class="stat-top">
+                <span class="stat-label">Projects</span>
+                <span class="stat-icon purple">▧</span>
               </div>
-            </header>
-            <div class="settings-layout">
-              <nav class="settings-navigation" aria-label="Settings sections">
-                <button type="button" data-setting-section="account">Account</button>
-                <button type="button" data-setting-section="api">API Configuration</button>
-                <button type="button" data-setting-section="runtime">
-                  Environment &amp; Runtime
+              <div class="stat-value" id="project-count">00</div>
+              <div class="stat-foot">Projects added to your workspace</div>
+            </article>
+
+            <article class="stat-card">
+              <div class="stat-top">
+                <span class="stat-label">Tests executed</span>
+                <span class="stat-icon green">⌘</span>
+              </div>
+              <div class="stat-value">—</div>
+              <div class="stat-foot">Testing engine not connected</div>
+            </article>
+
+            <article class="stat-card">
+              <div class="stat-top">
+                <span class="stat-label">Issues detected</span>
+                <span class="stat-icon orange">◇</span>
+              </div>
+              <div class="stat-value">—</div>
+              <div class="stat-foot">No scans have been performed</div>
+            </article>
+          </div>
+
+          <div class="content-grid">
+            <section class="panel project-panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>Your projects</h2>
+                  <p>Choose a project to get started.</p>
+                </div>
+                <button type="button" class="text-button" id="view-projects">View all ↗</button>
+              </div>
+
+              <div id="project-list" class="project-list">
+                <div class="empty-state">
+                  <div class="empty-icon">⌘</div>
+                  <h3>Your workspace starts here</h3>
+                  <p>Add a local project to begin building with DEVTEX.</p>
+                  <button type="button" class="button button-secondary" id="add-first-project">
+                    ＋ Add your first project
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel engine-panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>Testing Engine</h2>
+                  <p>Automated software bug scanner</p>
+                </div>
+                <span class="status-pill"> <span></span> ACTIVE SCANNER </span>
+              </div>
+
+              <div class="engine-graphic">
+                <div class="engine-orbit orbit-one"></div>
+                <div class="engine-orbit orbit-two"></div>
+                <div class="engine-core">
+                  <img class="engine-logo" src="./assets/logo.png" alt="DEVTEX" />
+                </div>
+              </div>
+
+              <h3 class="engine-title">Automated Bug Detection</h3>
+              <p class="engine-description">
+                Inspect project source files to discover bugs, security vulnerabilities, unhandled errors, and code
+                defects.
+              </p>
+
+              <div style="margin-bottom: 12px; width: 100%;">
+                <select id="engine-project-select"
+                  style="width: 100%; min-height: 34px; padding: 0 10px; border: 1px solid #393544; border-radius: 6px; color: #e8eaf2; background: #0b0d13; font-size: 11px;">
+                  <option value="">Select project to scan...</option>
+                </select>
+              </div>
+
+              <button type="button" class="button button-primary full-width" id="run-scan">
+                Scan Project for Bugs 🔍
+              </button>
+
+              <p class="demo-note">AUTOMATED CODE &amp; AI BUG DETECTION ENGINE</p>
+              <div id="scan-result" class="scan-result" role="status"></div>
+            </section>
+          </div>
+
+          <section class="panel github-repositories-panel" aria-labelledby="github-repositories-title">
+            <div class="panel-heading">
+              <div>
+                <h2 id="github-repositories-title">GitHub repositories</h2>
+                <p id="github-connection-label" role="status">Not connected</p>
+              </div>
+              <div class="github-repository-actions">
+                <button type="button" class="button button-secondary" id="github-refresh" disabled>
+                  Refresh
                 </button>
-                <button type="button" data-setting-section="integrations">Integrations</button>
-                <button type="button" data-setting-section="preferences">Preferences</button>
-                <button type="button" data-setting-section="diagnostics">
-                  Security &amp; Diagnostics
+                <button type="button" class="button button-secondary" id="github-disconnect" disabled>
+                  Disconnect
                 </button>
-                <button type="button" data-setting-section="about">About DEVTEX</button>
-              </nav>
-              <div class="settings-panel panel" id="settings-panel" aria-live="polite"></div>
-            </div>
-          </section>
-
-          <section class="ai-chat-view" id="ai-chat-view" aria-labelledby="ai-chat-title" hidden>
-            <header class="settings-heading">
-              <div>
-                <div class="eyebrow">INTELLIGENT WORKSPACE ASSISTANT</div>
-                <h1 id="ai-chat-title">AI Chat &amp; Project Explorer</h1>
-                <p class="subtitle" id="ai-chat-description">
-                  Chat, get code assistance, or explore project files with your configured AI provider.
-                </p>
               </div>
-            </header>
-            <div class="panel ai-chat-panel" id="ai-chat-container"></div>
+            </div>
+            <div class="github-repository-toolbar">
+              <input id="github-repository-search" type="search" placeholder="Search repositories"
+                aria-label="Search GitHub repositories" disabled />
+              <span id="github-repository-count" class="muted"></span>
+            </div>
+            <p id="github-repository-message" class="github-repository-message" role="status">
+              Connect GitHub to list public and private repositories available to your account.
+            </p>
+            <div id="github-repository-list" class="github-repository-list" aria-live="polite"></div>
           </section>
 
-          <section class="profile-view" id="profile-view" aria-labelledby="profile-title" hidden>
-            <header class="settings-heading">
+          <section class="panel activity-panel">
+            <div class="panel-heading">
               <div>
-                <div class="eyebrow">DEVELOPER IDENTITY &amp; ACCOUNTS</div>
-                <h1 id="profile-title">Developer Profile</h1>
-                <p class="subtitle" id="profile-description">
-                  Your connected GitHub profile, repositories, and workspace identity.
-                </p>
+                <h2>Recent activity</h2>
+                <p>What's happening in your workspace</p>
               </div>
-            </header>
-            <div class="profile-layout" id="profile-layout"></div>
+              <span class="muted">LATEST</span>
+            </div>
+
+            <div id="activity-list" class="activity-list">
+              <div class="activity-row">
+                <span class="activity-dot purple-dot"></span>
+                <div class="activity-copy">
+                  <strong>DEVTEX workspace initialized</strong>
+                  <span>Your local developer workspace is ready.</span>
+                </div>
+                <time>JUST NOW</time>
+              </div>
+            </div>
           </section>
 
-          <footer class="footer">
-            <div class="footer-left">
-              <span class="footer-brand">DEVTEX</span>
-              <span class="footer-dot">●</span>
-              <span class="footer-text">Made by <strong>Yatharth</strong> (<a href="https://github.com/itzyathu_12" id="footer-author-link" class="footer-link">itzyathu_12</a>)</span>
-            </div>
-            <div class="footer-right">
-              <span class="footer-badge"><span class="footer-status-dot"></span> Ready</span>
-              <span class="electron-version"></span>
-              <span class="chrome-version"></span>
-              <span class="node-version"></span>
-            </div>
-          </footer>
-        </section>
-      </main>
-    </div>
-
-    <!-- Authentication modal: outside the header and main content -->
-    <div class="modal-backdrop" id="auth-modal" hidden>
-      <section class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
-        <button type="button" class="modal-close" id="close-auth" aria-label="Close sign-in dialog">
-          ×
-        </button>
-
-        <div class="auth-logo-wrap">
-          <img class="auth-logo-img" src="./assets/logo.png" alt="DEVTEX" />
         </div>
 
-        <h2 id="auth-title">Welcome to DEVTEX</h2>
-        <p class="auth-description">Sign in to your developer workspace.</p>
 
-        <button type="button" class="oauth-button" id="google-sign-in">
-          <span class="oauth-symbol">G</span>
-          Continue with Google
-        </button>
+        <section class="workspace-page" id="projects-view" hidden>
+          <header class="workspace-page-heading">
+            <div>
+              <div class="eyebrow">PROJECT WORKSPACE</div>
+              <h1>Projects</h1>
+              <p class="subtitle">Your local codebases, ready to inspect and work on.</p>
+            </div>
+            <button type="button" class="button button-primary" id="projects-add">＋ Add project</button>
+          </header>
+          <div class="workspace-toolbar panel">
+            <div><span class="workspace-kicker">REGISTERED PROJECTS</span><strong
+                id="workspace-project-count">00</strong></div>
+            <input id="projects-search" type="search" placeholder="Search by project name or path"
+              aria-label="Search projects" />
+          </div>
+          <div id="workspace-project-list" class="workspace-project-list"></div>
+        </section>
 
-        <button type="button" class="oauth-button" id="github-sign-in">
-          <span class="oauth-symbol">⌘</span>
-          Continue with GitHub
-        </button>
+        <section class="workspace-page" id="testing-view" hidden>
+          <header class="workspace-page-heading">
+            <div>
+              <div class="eyebrow">ANALYSIS WORKSPACE</div>
+              <h1>Testing Engine</h1>
+              <p class="subtitle">Select a project and run the current DEVTEX static defect scanner.</p>
+            </div><span class="workspace-engine-status">SCANNER AVAILABLE</span>
+          </header>
+          <div id="testing-engine-content" class="testing-engine-content"></div>
+        </section>
 
-        <p class="auth-footnote">OAuth authentication needs to be configured.</p>
+        <section class="workspace-page" id="reports-view" hidden>
+          <header class="workspace-page-heading">
+            <div>
+              <div class="eyebrow">QUALITY &amp; INSIGHTS</div>
+              <h1>Scan Reports</h1>
+              <p class="subtitle">A session history of completed project scans and their findings.</p>
+            </div>
+          </header>
+          <div class="report-metrics">
+            <article class="panel"><span>SCANS THIS SESSION</span><strong id="reports-total">00</strong></article>
+            <article class="panel"><span>TOTAL FINDINGS</span><strong id="reports-issues">0</strong></article>
+          </div>
+          <div id="reports-list" class="reports-list"></div>
+          <p class="reports-note">Reports are kept in memory for this app session only. They are not yet saved to disk.
+          </p>
+        </section>
+
+        <section class="settings-view" id="settings-view" aria-labelledby="settings-title" hidden>
+          <header class="settings-heading">
+            <div>
+              <div class="eyebrow">DEVTEX CONTROL CENTER</div>
+              <h1 id="settings-title">Developer settings</h1>
+              <p class="subtitle" id="settings-description">
+                Manage your account and application preferences.
+              </p>
+            </div>
+          </header>
+          <div class="settings-layout">
+            <nav class="settings-navigation" aria-label="Settings sections">
+              <button type="button" data-setting-section="account">Account</button>
+              <button type="button" data-setting-section="api">API Configuration</button>
+              <button type="button" data-setting-section="runtime">
+                Environment &amp; Runtime
+              </button>
+              <button type="button" data-setting-section="integrations">Integrations</button>
+              <button type="button" data-setting-section="preferences">Preferences</button>
+              <button type="button" data-setting-section="diagnostics">
+                Security &amp; Diagnostics
+              </button>
+              <button type="button" data-setting-section="about">About DEVTEX</button>
+            </nav>
+            <div class="settings-panel panel" id="settings-panel" aria-live="polite"></div>
+          </div>
+        </section>
+
+        <section class="ai-chat-view" id="ai-chat-view" aria-labelledby="ai-chat-title" hidden>
+          <header class="settings-heading">
+            <div>
+              <div class="eyebrow">INTELLIGENT WORKSPACE ASSISTANT</div>
+              <h1 id="ai-chat-title">AI Chat &amp; Project Explorer</h1>
+              <p class="subtitle" id="ai-chat-description">
+                Chat, get code assistance, or explore project files with your configured AI provider.
+              </p>
+            </div>
+          </header>
+          <div class="panel ai-chat-panel" id="ai-chat-container"></div>
+        </section>
+
+        <section class="profile-view" id="profile-view" aria-labelledby="profile-title" hidden>
+          <header class="settings-heading">
+            <div>
+              <div class="eyebrow">DEVELOPER IDENTITY &amp; ACCOUNTS</div>
+              <h1 id="profile-title">Developer Profile</h1>
+              <p class="subtitle" id="profile-description">
+                Your connected GitHub profile, repositories, and workspace identity.
+              </p>
+            </div>
+          </header>
+          <div class="profile-layout" id="profile-layout"></div>
+        </section>
+
+        <footer class="footer">
+          <div class="footer-left">
+            <span class="footer-brand">DEVTEX</span>
+            <span class="footer-dot">●</span>
+            <span class="footer-text">Made by <strong>Yatharth</strong> (<a href="https://github.com/itzyathu-12"
+                id="footer-author-link" class="footer-link">itzyathu_12</a>)</span>
+          </div>
+          <div class="footer-right">
+            <span class="footer-badge"><span class="footer-status-dot"></span> Ready</span>
+            <span class="electron-version"></span>
+            <span class="chrome-version"></span>
+            <span class="node-version"></span>
+          </div>
+        </footer>
       </section>
-    </div>
+    </main>
+  </div>
 
-    <script type="module" src="./src/renderer.ts"></script>
-  </body>
+  <!-- Authentication modal: outside the header and main content -->
+  <div class="modal-backdrop" id="auth-modal" hidden>
+    <section class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+      <button type="button" class="modal-close" id="close-auth" aria-label="Close sign-in dialog">
+        ×
+      </button>
+
+      <div class="auth-logo-wrap">
+        <img class="auth-logo-img" src="./assets/logo.png" alt="DEVTEX" />
+      </div>
+
+      <h2 id="auth-title">Welcome to DEVTEX</h2>
+      <p class="auth-description">Sign in to your developer workspace.</p>
+
+      <button type="button" class="oauth-button" id="google-sign-in">
+        <span class="oauth-symbol">G</span>
+        Continue with Google
+      </button>
+
+      <button type="button" class="oauth-button" id="github-sign-in">
+        <span class="oauth-symbol">⌘</span>
+        Continue with GitHub
+      </button>
+
+      <p class="auth-footnote">OAuth authentication needs to be configured.</p>
+    </section>
+  </div>
+
+  <script type="module" src="./src/renderer.ts"></script>
+</body>
+
 </html>

@@ -53,6 +53,11 @@ const api = {
     ipcRenderer.invoke('project:apply-edit', request),
   scanProjectForBugs: (projectPath: string): Promise<ProjectBugScanResult> =>
     ipcRenderer.invoke('project:scan-bugs', projectPath),
+  getIgnoredBugs: (): Promise<string[]> => ipcRenderer.invoke('bugs:get-ignored'),
+  ignoreBug: (identifiers: string | string[]): Promise<string[]> =>
+    ipcRenderer.invoke('bugs:ignore', identifiers),
+  unignoreBug: (identifier: string): Promise<string[]> =>
+    ipcRenderer.invoke('bugs:unignore', identifier),
   disconnectGitHubRepositories: (): Promise<GitHubConnectionStatus> =>
     ipcRenderer.invoke('github:disconnect'),
   openGitHubRepository: (url: string): Promise<void> =>

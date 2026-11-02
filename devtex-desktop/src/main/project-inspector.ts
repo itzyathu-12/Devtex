@@ -327,7 +327,8 @@ export async function applyProjectFileEdit(
 
 export async function scanProjectForBugs(
   projectPath: string,
-  aiChatCallback?: (prompt: string) => Promise<string>
+  aiChatCallback?: (prompt: string) => Promise<string>,
+  ignoredBugs: string[] = []
 ): Promise<ProjectBugScanResult> {
   const allFiles = await collectFiles(projectPath, projectPath, 0, 150)
   const codeExtensions = new Set([
@@ -487,16 +488,30 @@ Respond ONLY with a valid JSON array of objects with keys: id, file, line, sever
     }
   }
 
-  const criticalCount = bugs.filter((b) => b.severity === 'critical').length
-  const warningCount = bugs.filter((b) => b.severity === 'warning').length
-  const summary =
-    bugs.length === 0
+  const ignoredSet = new Set(ignoredBugs.map((s) => s.trim().toLowerCase()))
+  const activeBugs = ignoredSet.size === 0
+    ? bugs
+    : bugs.filter((b) => {
+        const idLower = b.id.trim().toLowerCase()
+        const keyLower = `${b.file}::${b.title}`.trim().toLowerCase()
+        return !ignoredSet.has(idLower) && !ignoredSet.has(keyLower)
+      })
+
+  const hiddenCount = bugs.length - activeBugs.length
+  const criticalCount = activeBugs.filter((b) => b.severity === 'critical').length
+  const warningCount = activeBugs.filter((b) => b.severity === 'warning').length
+  let summary =
+    activeBugs.length === 0
       ? `Scan complete: ${scannedCount} files inspected. No critical bugs found!`
-      : `Scan complete: ${scannedCount} files inspected. Found ${bugs.length} issues (${criticalCount} critical, ${warningCount} warnings).`
+      : `Scan complete: ${scannedCount} files inspected. Found ${activeBugs.length} issues (${criticalCount} critical, ${warningCount} warnings).`
+
+  if (hiddenCount > 0) {
+    summary += ` (${hiddenCount} ignored issue${hiddenCount > 1 ? 's' : ''} hidden)`
+  }
 
   return {
     success: true,
-    bugs,
+    bugs: activeBugs,
     scannedFilesCount: scannedCount,
     summary
   }
