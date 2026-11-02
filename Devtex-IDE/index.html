@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DEVTEX IDE — 0.1</title>
+<style>
+:root{color-scheme:dark;--bg:#090c12;--panel:#101620;--panel2:#0c1119;--line:#202b3b;--muted:#8290a5;--text:#e6edf7;--blue:#55a8ff;--cyan:#63e5df;--green:#7de3a1}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:13px/1.5 Inter,Segoe UI,system-ui,sans-serif;height:100vh;overflow:hidden}
+button,input,textarea{font:inherit;color:inherit}button{cursor:pointer;border:1px solid var(--line);background:#141d29;border-radius:7px;padding:7px 10px}button:hover{border-color:#42658d;background:#182638}.app{height:100vh;display:grid;grid-template-rows:48px 1fr 26px}
+.top{display:flex;align-items:center;gap:18px;padding:0 15px;border-bottom:1px solid var(--line);background:#0b1018}.brand{font-weight:800;letter-spacing:2px;font-size:14px}.brand b{color:var(--blue)}.crumb{color:var(--muted)}.topright{margin-left:auto;display:flex;gap:8px;align-items:center}.pill{border:1px solid #26384d;border-radius:20px;padding:4px 9px;color:#9dc9ff;font-size:11px}
+.main{display:grid;grid-template-columns:220px minmax(350px,1fr) 300px;min-height:0}.sidebar,.right{background:var(--panel2);min-height:0;overflow:auto}.sidebar{border-right:1px solid var(--line);padding:14px 10px}.right{border-left:1px solid var(--line);padding:14px}.section-title{font-size:10px;letter-spacing:1.5px;color:#718198;font-weight:700;margin:5px 8px 12px}.tree{display:flex;flex-direction:column;gap:3px}.tree button{border:0;background:transparent;text-align:left;padding:7px 9px;color:#aebbd0}.tree button.active{background:#15243a;color:#b7dcff;border-left:2px solid var(--blue)}.tree .indent{padding-left:25px}.side-note{margin:18px 7px;padding:12px;border:1px solid var(--line);border-radius:9px;color:var(--muted);font-size:11px}
+.center{display:grid;grid-template-rows:40px minmax(0,1fr) 180px;min-width:0}.tabs{display:flex;align-items:center;border-bottom:1px solid var(--line);background:#0e141d}.tab{padding:10px 15px;border-right:1px solid var(--line);color:#a8b4c7}.tab.active{color:#dceeff;border-top:2px solid var(--blue);background:#111a26}.editorwrap{position:relative;min-height:0;background:#0c1118}.editorhead{display:flex;justify-content:space-between;padding:9px 14px;color:var(--muted);border-bottom:1px solid #17212d}.editor{width:100%;height:calc(100% - 38px);resize:none;border:0;outline:0;background:transparent;padding:20px 24px;color:#d8e4f3;font:13px/1.8 'Cascadia Code',Consolas,monospace;tab-size:2}.bottom{border-top:1px solid var(--line);background:#0d131c;display:grid;grid-template-rows:34px 1fr;min-height:0}.bottomnav{display:flex;align-items:center;gap:18px;padding:0 14px;border-bottom:1px solid var(--line);color:var(--muted)}.bottomnav strong{color:#dce8f6}.output{padding:12px 15px;font:12px/1.7 Consolas,monospace;color:#9aabc1;overflow:auto}.output .ok{color:var(--green)}.right h3{font-size:13px;margin:0 0 12px}.card{border:1px solid var(--line);border-radius:10px;background:#111923;padding:12px;margin-bottom:12px}.card p{color:var(--muted);margin:6px 0 10px;font-size:12px}.intent{width:100%;min-height:84px;background:#0b1119;border:1px solid #263449;border-radius:8px;padding:10px;resize:vertical;outline:none}.intent:focus{border-color:#458dd1}.wide{width:100%;margin-top:8px;background:#18314c;border-color:#28527b;color:#b9ddff}.metric{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #1b2634;color:var(--muted)}.metric:last-child{border:0}.metric b{color:#dce8f6;font-weight:500}.status{display:flex;align-items:center;gap:12px;padding:0 10px;background:#102033;color:#91b7dc;font-size:11px}.status span:last-child{margin-left:auto}.dot{width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;margin-right:5px}
+@media(max-width:950px){.main{grid-template-columns:180px minmax(0,1fr)}.right{display:none}}@media(max-width:600px){.main{grid-template-columns:1fr}.sidebar{display:none}.top .crumb{display:none}}
+</style>
+</head>
+<body><div class="app">
+<header class="top"><div class="brand"><b>DEV</b>TEX <span style="color:#60718a;font-weight:400">/ IDE</span></div><span class="crumb">workspace / sandbox</span><div class="topright"><span class="pill">PREVIEW 0.1</span><button id="saveBtn">Save</button></div></header>
+<div class="main">
+<aside class="sidebar"><div class="section-title">WORKSPACE</div><div class="tree">
+<button class="active" data-file="app.ts">⌘ &nbsp; app.ts</button><button data-file="intent.md">◇ &nbsp; intent.md</button><button data-file="notes.md">◇ &nbsp; notes.md</button><button data-file="tests.ts">⌁ &nbsp; tests.ts</button>
+</div><div class="section-title" style="margin-top:25px">TOOLS</div><div class="tree"><button id="runBtn">▶ &nbsp; Run workspace</button><button id="clearBtn">⌫ &nbsp; Clear output</button></div><div class="side-note">This is a local-first prototype. Your edits stay in this browser through local storage.</div></aside>
+<section class="center"><div class="tabs"><div class="tab active" id="activeTab">app.ts</div><div style="margin-left:auto;padding-right:12px;color:#718198">UTF-8 · TypeScript</div></div>
+<div class="editorwrap"><div class="editorhead"><span id="pathLabel">src / app.ts</span><span id="saveState">Saved locally</span></div><textarea class="editor" id="editor" spellcheck="false" aria-label="Code editor"></textarea></div>
+<div class="bottom"><div class="bottomnav"><strong>OUTPUT</strong><span>RUN LOG</span><span>EXPERIMENTS</span><span>DIAGNOSTICS</span></div><div class="output" id="output"><span class="ok">DEVTEX runtime sandbox ready.</span><br>Choose <b>Run workspace</b> to execute the current preview action.<br><span style="color:#64758b">No remote AI or project execution is connected in this release.</span></div></div></section>
+<aside class="right"><div class="section-title">INTENT SPACE</div><div class="card"><h3>What are you trying to make?</h3><p>Start with the outcome. Keep the goal visible while you work.</p><textarea class="intent" id="intent" placeholder="Describe the behavior you want..."></textarea><button class="wide" id="pinIntent">Pin intent to workspace ↗</button><p id="intentStatus">No intent pinned yet.</p></div>
+<div class="section-title">WORKSPACE SIGNALS</div><div class="card"><div class="metric"><span>Editor</span><b>Ready</b></div><div class="metric"><span>Local save</span><b>Enabled</b></div><div class="metric"><span>AI connection</span><b>Not connected</b></div><div class="metric"><span>Execution</span><b>Preview only</b></div></div>
+<div class="card"><h3>Experiments</h3><p>Record a hypothesis before testing a change. This release provides a lightweight experiment log.</p><button id="experimentBtn" class="wide">＋ Create experiment</button></div>
+</aside></div>
+<footer class="status"><span><i class="dot"></i>Workspace ready</span><span>Local mode</span><span id="footerStatus">0.1.0 · prototype</span></footer></div>
+<script>
+const files={
+'app.ts':'// DEVTEX IDE — workspace starter\n// Define the behavior you want to explore.\n\nexport function main() {\n  const idea = "make something useful";\n  console.log("DEVTEX:", idea);\n}\n\nmain();',
+'intent.md':'# Workspace intent\n\nDescribe the outcome this workspace should achieve.\n\n- Who is it for?\n- What should it do?\n- How will you know it works?',
+'notes.md':'# Notes\n\nCapture decisions, observations, and next steps here.',
+'tests.ts':'// Experiment scratchpad\n\n// Hypothesis: \n// Observation: \n// Result: pending'
+};
+let current='app.ts';const editor=document.querySelector('#editor'),output=document.querySelector('#output');
+function loadFile(name){files[current]=editor.value;current=name;editor.value=localStorage.getItem('devtex:file:'+name)??files[name];document.querySelector('#activeTab').textContent=name;document.querySelector('#pathLabel').textContent='src / '+name;document.querySelectorAll('[data-file]').forEach(b=>b.classList.toggle('active',b.dataset.file===name));}
+function log(s){output.innerHTML+='\n'+s;output.scrollTop=output.scrollHeight}
+document.querySelectorAll('[data-file]').forEach(b=>b.onclick=()=>loadFile(b.dataset.file));
+editor.value=localStorage.getItem('devtex:file:app.ts')??files['app.ts'];
+editor.addEventListener('input',()=>{document.querySelector('#saveState').textContent='Unsaved changes';});
+function save(){files[current]=editor.value;localStorage.setItem('devtex:file:'+current,editor.value);document.querySelector('#saveState').textContent='Saved locally';document.querySelector('#footerStatus').textContent='Saved · 0.1.0';}
+document.querySelector('#saveBtn').onclick=save;
+document.querySelector('#runBtn').onclick=()=>{save();log('<span class="ok">[preview] Workspace action completed.</span>');log('Current file: '+current+' · '+editor.value.split('\n').length+' lines');log('Note: this prototype does not execute arbitrary code yet.');};
+document.querySelector('#clearBtn').onclick=()=>output.innerHTML='<span class="ok">Output cleared.</span>';
+document.querySelector('#pinIntent').onclick=()=>{const v=document.querySelector('#intent').value.trim();if(!v){document.querySelector('#intentStatus').textContent='Write an outcome first.';return;}localStorage.setItem('devtex:workspace:intent',v);document.querySelector('#intentStatus').textContent='Intent pinned ✓';log('Intent pinned to workspace.');};
+document.querySelector('#intent').value=localStorage.getItem('devtex:workspace:intent')||'';
+document.querySelector('#experimentBtn').onclick=()=>{const title=prompt('Experiment name / hypothesis?');if(title){log('<span class="ok">Experiment recorded:</span> '+title.replace(/[<>]/g,''));}};
+</script></body></html>
