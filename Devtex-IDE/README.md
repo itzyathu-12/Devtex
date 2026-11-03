@@ -13,12 +13,12 @@ npm run dev
 
 Build with `npm run build`. The electron-vite output is written to `out/`.
 
-## Current workspace
+## Current workspace · v2.1.3
 
 - Native folder picker and project-root-confined filesystem operations.
 - Lazy project explorer: only the root directory loads initially; nested folders load when expanded.
 - Open and switch between multiple file tabs, close tabs, and track unsaved changes.
-- Read, edit, create and save local text files and folders.
+- Read, edit, create and save local text files and folders.\n- Built-in lightweight syntax colouring for common languages, with language detection.\n- Editor indentation helpers for Tab and Enter.\n- JSON formatting through the editor Format action.
 - Command palette: Ctrl/Cmd + Shift + P.
 - Save: Ctrl/Cmd + S. Open workspace: Ctrl/Cmd + O. Close tab: Ctrl/Cmd + W.
 - Local project notes and persistent workspace preferences.
