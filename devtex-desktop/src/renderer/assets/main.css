@@ -2459,6 +2459,13 @@ select:focus {
   overflow-x: auto;
 }
 
+.bug-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
 .bug-fix-btn {
   align-self: flex-start;
   background: rgba(139, 106, 255, 0.2) !important;
@@ -2474,6 +2481,24 @@ select:focus {
 .bug-fix-btn:hover {
   background: rgba(139, 106, 255, 0.4) !important;
   color: #ffffff !important;
+}
+
+.bug-ignore-btn {
+  align-self: flex-start;
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #94a3b8 !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  font-size: 9px !important;
+  padding: 3px 8px !important;
+  border-radius: 4px !important;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.bug-ignore-btn:hover {
+  background: rgba(239, 68, 68, 0.2) !important;
+  color: #fca5a5 !important;
+  border-color: rgba(239, 68, 68, 0.4) !important;
 }
 
 /* --------------------------------------------------------------------------
@@ -3022,6 +3047,17 @@ select:focus {
   border-color: #315879 !important;
 }
 .bug-fix-btn:hover { background: #214562 !important; }
+
+.bug-ignore-btn {
+  background: #151f29 !important;
+  color: #8da1b5 !important;
+  border-color: #26384a !important;
+}
+.bug-ignore-btn:hover {
+  background: #341f27 !important;
+  color: #fca5a5 !important;
+  border-color: #6e2e3d !important;
+}
 
 button:focus-visible,
 a:focus-visible,

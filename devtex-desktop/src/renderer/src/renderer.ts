@@ -98,14 +98,14 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase =
   supabaseUrl &&
-  supabaseKey &&
-  isValidSupabaseUrl(supabaseUrl) &&
-  isValidSupabasePublishableKey(supabaseKey)
+    supabaseKey &&
+    isValidSupabaseUrl(supabaseUrl) &&
+    isValidSupabasePublishableKey(supabaseKey)
     ? createClient(supabaseUrl, supabaseKey, {
-        auth: {
-          flowType: 'pkce'
-        }
-      })
+      auth: {
+        flowType: 'pkce'
+      }
+    })
     : null
 
 function init(): void {
@@ -132,7 +132,7 @@ function showVersions(): void {
 
   document.getElementById('footer-author-link')?.addEventListener('click', (event) => {
     event.preventDefault()
-    void window.api.openExternal('https://github.com/itzyathu_12')
+    void window.api.openExternal('https://github.com/itzyathu-12')
   })
 }
 
@@ -905,6 +905,9 @@ function setupTestingEngine(): void {
             card.append(fixHint)
           }
 
+          const actionsWrap = document.createElement('div')
+          actionsWrap.className = 'bug-actions'
+
           const fixBtn = document.createElement('button')
           fixBtn.type = 'button'
           fixBtn.className = 'bug-fix-btn'
@@ -913,7 +916,42 @@ function setupTestingEngine(): void {
             openAIChatWithFixPrompt(targetPath, bug)
           })
 
-          card.append(fixBtn)
+          const ignoreBtn = document.createElement('button')
+          ignoreBtn.type = 'button'
+          ignoreBtn.className = 'bug-ignore-btn'
+          ignoreBtn.textContent = 'Ignore ✕'
+          ignoreBtn.title = 'Ignore this bug and never show it again'
+          ignoreBtn.addEventListener('click', async () => {
+            ignoreBtn.disabled = true
+            ignoreBtn.textContent = 'Ignoring...'
+            try {
+              const bugKey = `${bug.file}::${bug.title}`
+              const updatedIgnored = await window.api.ignoreBug([bug.id, bugKey])
+              if (currentPreferences) {
+                currentPreferences.ignoredBugs = updatedIgnored
+              }
+              card.style.transition = 'opacity 0.2s ease, transform 0.2s ease'
+              card.style.opacity = '0'
+              card.style.transform = 'scale(0.97)'
+              setTimeout(() => {
+                card.remove()
+                if (bugList.children.length === 0) {
+                  const emptyState = document.createElement('p')
+                  emptyState.className = 'gemini-chat-empty'
+                  emptyState.textContent = 'No active issues. All detected bugs resolved or ignored.'
+                  result.append(emptyState)
+                }
+              }, 200)
+              addActivity('Bug ignored', `Ignored "${bug.title}" in ${bug.file}`)
+            } catch (err) {
+              ignoreBtn.disabled = false
+              ignoreBtn.textContent = 'Ignore ✕'
+              console.error('Failed to ignore bug', err)
+            }
+          })
+
+          actionsWrap.append(fixBtn, ignoreBtn)
+          card.append(actionsWrap)
           bugList.append(card)
         })
 
@@ -968,7 +1006,7 @@ function setupGitHubRepositories(): void {
     }
     if (connectButton) {
       connectButton.textContent = connection.connected ? 'GitHub connected' : 'Connect GitHub'
-      ;(connectButton as HTMLButtonElement).disabled = connection.connecting || loading
+        ; (connectButton as HTMLButtonElement).disabled = connection.connecting || loading
     }
     if (refreshButton) refreshButton.disabled = !connection.connected || loading
     if (disconnectButton)
@@ -1123,9 +1161,9 @@ function setupGitHubRepositories(): void {
         currentGitHubStatus = status
         setMessage(
           status.message ||
-            (status.connected
-              ? `Connected as @${status.username}.`
-              : 'Waiting for GitHub authorization.')
+          (status.connected
+            ? `Connected as @${status.username}.`
+            : 'Waiting for GitHub authorization.')
         )
         renderRepositories()
         if (status.connected) void loadRepositories()
@@ -1720,7 +1758,9 @@ function renderPreferences(panel: HTMLElement): void {
       startupPage: pageSelect.value as StartupPage,
       geminiModel: currentPreferences.geminiModel,
       aiProvider: currentPreferences.aiProvider,
-      providerModels: currentPreferences.providerModels
+      providerModels: currentPreferences.providerModels,
+      projects: currentPreferences.projects,
+      ignoredBugs: currentPreferences.ignoredBugs
     }
     save.disabled = true
     status.textContent = 'Saving…'

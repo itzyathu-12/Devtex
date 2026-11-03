@@ -30,7 +30,8 @@ const defaultPreferences: AppPreferences = {
   geminiModel: defaultProviderModels.gemini,
   aiProvider: 'gemini',
   providerModels: { ...defaultProviderModels },
-  projects: []
+  projects: [],
+  ignoredBugs: []
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -92,6 +93,10 @@ function validatePreferences(value: unknown): AppPreferences {
     ? value.projects.filter(isValidProject)
     : []
 
+  const ignoredBugs: string[] = Array.isArray(value.ignoredBugs)
+    ? value.ignoredBugs.filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
+    : []
+
   return {
     reduceMotion: value.reduceMotion,
     startupPage: value.startupPage as StartupPage,
@@ -102,7 +107,8 @@ function validatePreferences(value: unknown): AppPreferences {
       groq: groqModel,
       openai: openaiModel
     },
-    projects
+    projects,
+    ignoredBugs
   }
 }
 
@@ -156,6 +162,29 @@ export async function removeProject(id: string): Promise<WorkspaceProject[]> {
   const current = preferences.projects ?? []
   const updated = current.filter((p) => p.id !== id)
   await savePreferences({ ...preferences, projects: updated })
+  return updated
+}
+
+export async function getIgnoredBugs(): Promise<string[]> {
+  const preferences = await getPreferences()
+  return preferences.ignoredBugs ?? []
+}
+
+export async function addIgnoredBug(bugIdentifier: string | string[]): Promise<string[]> {
+  const preferences = await getPreferences()
+  const current = preferences.ignoredBugs ?? []
+  const toAdd = Array.isArray(bugIdentifier) ? bugIdentifier : [bugIdentifier]
+  const set = new Set([...current, ...toAdd.map((s) => s.trim()).filter((s) => s.length > 0)])
+  const updated = Array.from(set)
+  await savePreferences({ ...preferences, ignoredBugs: updated })
+  return updated
+}
+
+export async function removeIgnoredBug(bugIdentifier: string): Promise<string[]> {
+  const preferences = await getPreferences()
+  const current = preferences.ignoredBugs ?? []
+  const updated = current.filter((id) => id !== bugIdentifier)
+  await savePreferences({ ...preferences, ignoredBugs: updated })
   return updated
 }
 

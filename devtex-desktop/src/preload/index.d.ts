@@ -38,6 +38,9 @@ declare global {
     readProjectFile(request: ProjectFileReadRequest): Promise<ProjectFileReadResult>
     applyProjectFileEdit(request: ProjectFileEditRequest): Promise<ProjectFileEditResult>
     scanProjectForBugs(projectPath: string): Promise<ProjectBugScanResult>
+    getIgnoredBugs(): Promise<string[]>
+    ignoreBug(identifiers: string | string[]): Promise<string[]>
+    unignoreBug(identifier: string): Promise<string[]>
     disconnectGitHubRepositories(): Promise<GitHubConnectionStatus>
     openGitHubRepository(url: string): Promise<void>
     getProjects(): Promise<WorkspaceProject[]>
