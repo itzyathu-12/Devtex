@@ -214,7 +214,7 @@ function showPage(page: WorkspacePage, description = ''): void {
   if (breadcrumb) breadcrumb.textContent = page
   if (title) {
     title.textContent = page === 'Dashboard' ? '' : page
-    if (page === 'Dashboard') title.innerHTML = 'Welcome to <span>DEVTEX.</span>'
+    if (page === 'Dashboard') title.innerHTML = 'Make something <span>work.</span>'
   }
   if (subtitle) subtitle.textContent = description
 
@@ -238,12 +238,12 @@ function showPage(page: WorkspacePage, description = ''): void {
 
 function setupProjects(): void {
   let projects: WorkspaceProject[] = []
-  const count = document.getElementById('project-count')
+  const count = document.getElementById('home-project-total')
   const list = document.getElementById('project-list')
 
   function renderProjects(): void {
     if (count) {
-      count.textContent = String(projects.length).padStart(2, '0')
+      count.textContent = `${projects.length} PROJECT${projects.length === 1 ? '' : 'S'}`
     }
 
     if (!list) return
