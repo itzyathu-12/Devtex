@@ -864,6 +864,15 @@ function setupProjects(): void {
     document.querySelector<HTMLButtonElement>('[data-page="Projects"]')?.click()
   })
 
+  window.addEventListener('devtex:projects-changed', () => {
+    void window.api.getProjects().then((loaded) => {
+      projects = loaded
+      workspaceProjects = loaded
+      renderProjects()
+      renderWorkspaceProjectsPage()
+    }).catch(() => undefined)
+  })
+
   void window.api
     .getProjects()
     .then((loaded) => {
@@ -1606,6 +1615,30 @@ function setupGitHubRepositories(): void {
         branch.textContent = repository.defaultBranch
         metadata.append(branch)
       }
+      const cloneButton = document.createElement('button')
+      cloneButton.type = 'button'
+      cloneButton.className = 'button button-secondary'
+      cloneButton.textContent = 'Clone'
+      cloneButton.addEventListener('click', async () => {
+        cloneButton.disabled = true
+        cloneButton.textContent = 'Cloning…'
+        setMessage(`Choose a parent folder to clone ${repository.fullName} into…`)
+        try {
+          const project = await window.api.cloneGitHubRepository(repository.url)
+          if (project) {
+            setMessage(`Cloned ${repository.fullName} into ${project.path}.`, 'success')
+            window.dispatchEvent(new Event('devtex:projects-changed'))
+          } else {
+            setMessage('Clone cancelled.')
+          }
+        } catch (error) {
+          setMessage(error instanceof Error ? error.message : 'Could not clone this repository.', 'error')
+        } finally {
+          cloneButton.disabled = false
+          cloneButton.textContent = 'Clone'
+        }
+      })
+      metadata.append(cloneButton)
 
       row.append(details, metadata)
       list.append(row)
