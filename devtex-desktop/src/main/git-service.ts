@@ -103,15 +103,22 @@ function parseChanges(output: string): GitFileChange[] {
 
 export async function getGitStatus(path: string): Promise<GitRepositoryState> {
   const root = await repositoryRoot(path)
-  const [status, branchOutput, branchList, logOutput, remoteOutput] = await Promise.all([
+  const [status, branchOutput, localBranchOutput, remoteBranchOutput, upstreamOutput, logOutput, remoteOutput] = await Promise.all([
     git(root, ['status', '--porcelain=v1', '--branch']),
     git(root, ['branch', '--show-current']),
     git(root, ['branch', '--format=%(refname:short)']),
+    git(root, ['for-each-ref', '--format=%(refname:short)', 'refs/remotes']),
+    git(root, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}']).catch(() => ''),
     git(root, ['log', '-8', '--date=iso-strict', '--pretty=format:%H%x1f%h%x1f%s%x1f%an%x1f%aI']).catch(() => ''),
     git(root, ['remote', '-v'])
   ])
   const header = status.split('\n')[0] || ''
   const aheadBehind = /\[(?:ahead (\d+))?(?:, )?(?:behind (\d+))?\]/.exec(header)
+  const upstream = upstreamOutput.trim()
+  const divergence = upstream
+    ? await git(root, ['rev-list', '--left-right', '--count', `HEAD...${upstream}`]).catch(() => '')
+    : ''
+  const [aheadCount, behindCount] = divergence.trim().split(/\s+/).map((value) => Number(value))
   const commits: GitCommit[] = logOutput.split('\n').filter(Boolean).map((line) => {
     const [hash, shortHash, subject, author, date] = line.split('\x1f')
     return { hash, shortHash, subject, author, date }
@@ -125,12 +132,17 @@ export async function getGitStatus(path: string): Promise<GitRepositoryState> {
   return {
     root,
     branch: branch || 'HEAD (detached)',
-    upstream: /\.\.\.([^ ]+)/.exec(header)?.[1] ?? null,
-    ahead: Number(aheadBehind?.[1] ?? 0),
-    behind: Number(aheadBehind?.[2] ?? 0),
+    upstream: upstream || /\.\.\.([^ ]+)/.exec(header)?.[1] ?? null,
+    ahead: Number.isFinite(aheadCount) ? aheadCount : Number(aheadBehind?.[1] ?? 0),
+    behind: Number.isFinite(behindCount) ? behindCount : Number(aheadBehind?.[2] ?? 0),
     detached: !branch,
     changes: parseChanges(status.split('\n').slice(1).join('\n')),
-    branches: branchList.split('\n').filter(Boolean),
+    branches: [...new Set([
+      ...localBranchOutput.split('\n').filter(Boolean),
+      ...remoteBranchOutput.split('\n').filter(Boolean)
+        .filter((name) => !name.endsWith('/HEAD'))
+        .map((name) => name.replace(/^[^/]+\//, ''))
+    ])],
     commits,
     remotes: [...remotes].map(([name, url]) => ({ name, url }))
   }
