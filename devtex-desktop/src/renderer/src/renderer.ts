@@ -8,7 +8,8 @@ import type {
   GeminiStatus,
   SettingsSection,
   StartupPage,
-  WorkspaceProject
+  WorkspaceProject,
+  RepoOrganizationOperation
 } from '../../shared/settings'
 import { withLoadingState } from '../../shared/async-state'
 import type { GitRepositoryState, GitFileChange } from '../../shared/git'
@@ -267,6 +268,34 @@ const organizerTasks: Record<string, string> = {
   architecture: 'Review the repository architecture and separation of concerns. Identify tightly coupled areas, misplaced responsibilities, confusing module boundaries and opportunities to simplify without overengineering.'
 }
 
+function parseOrganizerPlan(raw: string): { summary: string; findings: string[]; operations: RepoOrganizationOperation[] } | null {
+  const start = raw.indexOf('{')
+  const end = raw.lastIndexOf('}')
+  if (start < 0 || end <= start) return null
+  try {
+    const value = JSON.parse(raw.slice(start, end + 1)) as Record<string, unknown>
+    if (!Array.isArray(value.operations)) return null
+    const operations: RepoOrganizationOperation[] = []
+    for (const item of value.operations.slice(0, 8)) {
+      if (!item || typeof item !== 'object') continue
+      const op = item as Record<string, unknown>
+      if (typeof op.id !== 'string' || typeof op.reason !== 'string') continue
+      if (op.type === 'move' && typeof op.from === 'string' && typeof op.to === 'string') {
+        operations.push({ id: op.id, type: 'move', from: op.from, to: op.to, reason: op.reason })
+      } else if (op.type === 'write' && typeof op.path === 'string' && typeof op.content === 'string') {
+        operations.push({ id: op.id, type: 'write', path: op.path, content: op.content, reason: op.reason })
+      }
+    }
+    return {
+      summary: typeof value.summary === 'string' ? value.summary : 'Repository organization proposal',
+      findings: Array.isArray(value.findings) ? value.findings.filter((entry): entry is string => typeof entry === 'string').slice(0, 12) : [],
+      operations
+    }
+  } catch {
+    return null
+  }
+}
+
 function setupRepoOrganizer(): void {
   const selector = document.getElementById('organizer-project') as HTMLSelectElement | null
   const prompt = document.getElementById('organizer-prompt') as HTMLTextAreaElement | null
@@ -329,32 +358,82 @@ function setupRepoOrganizer(): void {
       const response = await window.api.sendAIChat({
         messages: [{
           role: 'user',
-          text: `You are DEVTEX Repo Organizer. Analyse the selected repository and help organize it safely. ${instruction}
-
-Return a useful, evidence-based report with these sections:
-1. Current structure — summarize what is actually present.
-2. Findings — identify concrete problems and cite relative paths when available.
-3. Proposed structure — show a compact target directory tree.
-4. Change plan — list suggested moves, renames or cleanup actions one by one, with reasons.
-5. Safety notes — call out anything that should not be moved or deleted without checking references.
-
-Do not claim to have changed files. Do not recommend deleting files unless clearly safe; label uncertain items for manual review. Prefer small, reversible changes over a large rewrite. If the available project context is insufficient, say what needs inspecting next.`
+          text: 'You are DEVTEX Repo Organizer. Inspect the selected project and the user request: ' + instruction + '\n\nReturn ONLY valid JSON, no Markdown fences, in this shape: {"summary":"...","findings":["..."],"operations":[{"id":"1","type":"move","from":"existing/file","to":"new/file","reason":"..."},{"id":"2","type":"write","path":"file/to/create-or-update","content":"complete UTF-8 content","reason":"..."}]}. Only propose concrete individual-file moves and text-file creation/updates supported by actual inspected paths. Never propose deletes, directory moves, package restructuring, dependency changes, secrets, lockfiles, binaries, .git, node_modules, dist or build output. Maximum 8 operations. Do not claim changes have happened. If no safe action is justified, return an empty operations array.'
         }],
         mode: 'code-review',
         projectPath
       })
       result.replaceChildren()
-      const report = document.createElement('pre')
-      report.className = 'organizer-report'
-      if (response.success) {
-        report.textContent = response.text
-        status.textContent = 'Analysis complete. Review the plan before making changes.'
-        addActivity('Repository analysed', selector.selectedOptions[0]?.textContent || 'Repo Organizer')
+      if (!response.success) throw new Error(response.message)
+      const plan = parseOrganizerPlan(response.text)
+      if (!plan) {
+        const report = document.createElement('pre')
+        report.className = 'organizer-report'
+        report.textContent = response.text + '\n\nNo valid structured action plan was returned. Nothing was changed.'
+        result.append(report)
+        status.textContent = 'Analysis received, but no reviewable action plan could be parsed.'
       } else {
-        report.textContent = response.message
-        status.textContent = `${currentAIStatus.providerLabel} could not analyse this repository.`
+        const summary = document.createElement('p')
+        summary.className = 'organizer-plan-summary'
+        summary.textContent = plan.summary
+        result.append(summary)
+        const findings = document.createElement('pre')
+        findings.className = 'organizer-report'
+        findings.textContent = plan.findings.map((item, index) => (index + 1) + '. ' + item).join('\n') || 'No additional findings.'
+        result.append(findings)
+        if (plan.operations.length) {
+          const operationList = document.createElement('pre')
+          operationList.className = 'organizer-report'
+          operationList.textContent = plan.operations.map((op) => op.type === 'move'
+            ? 'MOVE: ' + op.from + ' → ' + op.to + '\nReason: ' + op.reason
+            : 'CREATE / UPDATE: ' + op.path + '\nReason: ' + op.reason + '\nContent preview:\n' + op.content.slice(0, 900)).join('\n\n---\n\n')
+          result.append(operationList)
+          const approval = document.createElement('div')
+          approval.className = 'organizer-approval-actions'
+          const ask = document.createElement('span')
+          ask.textContent = 'Apply these ' + plan.operations.length + ' proposed change(s) to your local repository?'
+          const yes = document.createElement('button')
+          yes.type = 'button'
+          yes.className = 'button button-primary'
+          yes.textContent = 'Approve & apply changes'
+          const no = document.createElement('button')
+          no.type = 'button'
+          no.className = 'button'
+          no.textContent = 'Reject plan'
+          no.addEventListener('click', () => {
+            approval.remove()
+            status.textContent = 'Plan rejected. No files were changed.'
+          })
+          yes.addEventListener('click', async () => {
+            if (!window.confirm('Apply ' + plan.operations.length + ' proposed changes to this local repository? Existing files are backed up where possible.')) return
+            yes.disabled = true
+            no.disabled = true
+            status.textContent = 'Applying approved changes…'
+            try {
+              const applied = await window.api.applyRepoOrganization({ projectPath, operations: plan.operations })
+              const outcome = document.createElement('pre')
+              outcome.className = 'organizer-report'
+              outcome.textContent = 'Applied: ' + applied.applied.length + '\n' +
+                applied.applied.map((item) => '✓ ' + item.path + (item.backupPath ? ' (backup: ' + item.backupPath + ')' : '')).join('\n') +
+                (applied.failed.length ? '\nFailed:\n' + applied.failed.map((item) => '✕ ' + item.id + ': ' + item.error).join('\n') : '')
+              result.append(outcome)
+              approval.remove()
+              status.textContent = applied.success ? 'Approved changes applied.' : 'Some approved changes failed. Review the results.'
+              addActivity('Repository changes applied', applied.applied.length + ' file operation(s)')
+            } catch (error) {
+              status.textContent = error instanceof Error ? error.message : 'Could not apply approved changes.'
+              yes.disabled = false
+              no.disabled = false
+            }
+          })
+          approval.append(ask, yes, no)
+          result.append(approval)
+          status.textContent = 'Analysis complete. Review the exact file operations and approve or reject them.'
+        } else {
+          status.textContent = 'Analysis complete. No changes recommended; nothing was changed.'
+        }
+        addActivity('Repository analysed', selector.selectedOptions[0]?.textContent || 'Repo Organizer')
       }
-      result.append(report)
     } catch (error) {
       result.replaceChildren()
       const report = document.createElement('p')
