@@ -161,6 +161,46 @@ export class GitHubRepositoryService {
     }
   }
 
+  async connectWithToken(value: unknown): Promise<GitHubConnectionStatus> {
+    if (typeof value !== 'string') throw new Error('Enter a GitHub Personal Access Token.')
+    const token = value.trim()
+    if (token.length < 20 || token.length > 300 || /\\s/.test(token)) {
+      throw new Error('That token does not look valid. Use a GitHub Personal Access Token, not your GitHub account password.')
+    }
+    await this.ensureSecureStorage()
+    const username = await this.fetchUser(token)
+    await this.saveCredential({ accessToken: token, username })
+    const status = { connected: true, connecting: false, username, message: 'GitHub connected using an encrypted Personal Access Token.' }
+    this.emit(status)
+    return status
+  }
+
+  async createRepository(nameValue: unknown, descriptionValue: unknown, isPrivate: unknown): Promise<GitHubRepository> {
+    const credential = await this.loadCredential()
+    if (!credential) throw new Error('Connect GitHub before creating a repository.')
+    const usable = await this.getUsableCredential(credential)
+    if (typeof nameValue !== 'string' || !/^[A-Za-z0-9._-]{1,100}$/.test(nameValue.trim())) {
+      throw new Error('Repository name must use letters, numbers, dots, hyphens, or underscores.')
+    }
+    const description = typeof descriptionValue === 'string' ? descriptionValue.trim().slice(0, 350) : ''
+    const response = await fetch('https://api.github.com/user/repos', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${usable.accessToken}`,
+        'X-GitHub-Api-Version': apiVersion,
+        'User-Agent': userAgent,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ name: nameValue.trim(), description, private: isPrivate === true, auto_init: false })
+    }).catch((error) => { throw new Error('Could not contact GitHub to create the repository.', { cause: error }) })
+    const body: unknown = await response.json().catch(() => null)
+    if (!response.ok) throw new Error(parseRetryMessage(response, body))
+    const repository = this.toRepository(body)
+    if (!repository) throw new Error('GitHub created a repository but returned an invalid repository record.')
+    return repository
+  }
+
   async getRepositories(): Promise<GitHubRepositoryResult> {
     const credential = await this.loadCredential()
     if (!credential) {
