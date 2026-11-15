@@ -5,6 +5,7 @@ import type {
   GitHubRepositoryResult
 } from '../shared/github'
 import type { AIProviderId, AppPreferences, AppRuntimeInfo } from '../shared/settings'
+import type { GitRepositoryState, GitDiffResult } from '../shared/git'
 import type {
   GeminiChatRequest,
   GeminiChatResponse,
@@ -20,6 +21,13 @@ import type {
 
 declare global {
   interface DevtexAuthAPI {
+    getGitStatus(path: string): Promise<GitRepositoryState>
+    getGitDiff(request: { path: string; filePath: string; staged?: boolean }): Promise<GitDiffResult>
+    stageGitFiles(request: { path: string; files: string[] }): Promise<void>
+    unstageGitFiles(request: { path: string; files: string[] }): Promise<void>
+    commitGitChanges(request: { path: string; message: string }): Promise<void>
+    switchGitBranch(request: { path: string; branch: string; create?: boolean }): Promise<void>
+    syncGitRepository(request: { path: string; action: 'fetch' | 'pull' | 'push' }): Promise<void>
     openExternal(url: string): Promise<void>
     onAuthCallback(callback: (url: string) => void): () => void
     connectGitHubRepositories(): Promise<GitHubConnectionStatus>
