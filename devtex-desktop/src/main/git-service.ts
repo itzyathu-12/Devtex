@@ -239,7 +239,7 @@ export async function cloneGitRepository(url: string, parentPath: string, github
   }
   let parsed: URL
   try { parsed = new URL(url) } catch { throw new Error('Enter a valid GitHub repository URL.') }
-  if (parsed.protocol !== 'https:' || parsed.hostname !== 'github.com' ||
+  if (parsed.protocol !== 'https:' || parsed.hostname !== 'github.com' || parsed.username || parsed.password || parsed.search || parsed.hash ||
       !/^\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\.git)?\/?$/.test(parsed.pathname)) {
     throw new Error('Only HTTPS GitHub repository URLs can be cloned from this view.')
   }
@@ -258,7 +258,7 @@ export async function setGitRemote(path: string, name: string, url: string): Pro
   if (typeof url !== 'string' || url.length > 2048) throw new Error('Enter a valid remote URL.')
   let parsed: URL | null = null
   try { parsed = new URL(url) } catch { /* SSH URL is validated below */ }
-  const validHttps = parsed?.protocol === 'https:' && parsed.hostname === 'github.com' && /^\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\.git)?\/?$/.test(parsed.pathname)
+  const validHttps = parsed?.protocol === 'https:' && parsed.hostname === 'github.com' && !parsed.username && !parsed.password && !parsed.search && !parsed.hash && /^\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\.git)?\/?$/.test(parsed.pathname)
   const validSsh = /^git@github\.com:[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\.git)?$/.test(url)
   if (!validHttps && !validSsh) throw new Error('Only GitHub HTTPS or SSH repository URLs are supported.')
   const existing = (await git(root, ['remote'])).split('\n').filter(Boolean)
