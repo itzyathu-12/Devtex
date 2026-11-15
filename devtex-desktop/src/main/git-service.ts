@@ -130,8 +130,8 @@ export async function getGitStatus(path: string): Promise<GitRepositoryState> {
   const matchingRemoteRefs = branch
     ? remoteBranchOutput.split('\n').filter((name) => name.endsWith('/' + branch) && !name.endsWith('/HEAD'))
     : []
-  const inferredUpstream = !configuredUpstream && matchingRemoteRefs.length === 1
-    ? matchingRemoteRefs[0]
+  const inferredUpstream = !configuredUpstream
+    ? matchingRemoteRefs.find((name) => name.startsWith('origin/')) || (matchingRemoteRefs.length === 1 ? matchingRemoteRefs[0] : '')
     : ''
   const upstream = configuredUpstream || inferredUpstream
   const divergence = upstream
