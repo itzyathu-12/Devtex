@@ -26,6 +26,7 @@
       <nav class="navigation">
         <button class="nav-item active" data-page="Dashboard"><span class="nav-icon">⌂</span> Overview</button>
         <button class="nav-item" data-page="Projects"><span class="nav-icon">▤</span> Codebases</button>
+        <button class="nav-item" data-page="Source Control"><span class="nav-icon">⌘</span> Source Control</button>
         <button class="nav-item" data-page="AI Chat"><span class="nav-icon">✳</span> Assistant</button>
         <button class="nav-item" data-page="Testing Engine"><span class="nav-icon">⌁</span> Diagnostics <span class="nav-count">BETA</span></button>
         <button class="nav-item" data-page="Reports"><span class="nav-icon">◷</span> Run history</button>
@@ -152,6 +153,30 @@
             </aside>
           </div>
         </div>
+
+        <section class="workspace-page git-workspace" id="git-view" hidden>
+          <header class="workspace-page-heading git-page-heading">
+            <div><div class="eyebrow">VERSION CONTROL / LOCAL GIT</div><h1>Source Control</h1><p class="subtitle">Review changes, shape commits, and sync your local repository.</p></div>
+            <div class="git-toolbar-actions"><button type="button" class="button button-secondary" id="git-fetch">Fetch</button><button type="button" class="button button-secondary" id="git-pull">Pull</button><button type="button" class="button button-primary" id="git-push">Push</button></div>
+          </header>
+          <div class="git-repository-bar">
+            <label for="git-project-select">REPOSITORY</label><select id="git-project-select"><option value="">Choose a registered project…</option></select>
+            <span class="git-branch-label">BRANCH</span><select id="git-branch-select" disabled><option>—</option></select>
+            <button type="button" class="button button-secondary" id="git-new-branch" disabled>＋ Branch</button>
+            <button type="button" class="button button-secondary" id="git-refresh" disabled>↻ Refresh</button>
+          </div>
+          <div id="git-status-message" class="git-status-message" role="status">Select a project folder that contains a Git repository.</div>
+          <div class="git-workspace-grid">
+            <section class="git-changes-panel">
+              <div class="git-section-title"><span>CHANGES</span><strong id="git-change-count">0</strong></div>
+              <div class="git-change-groups"><div class="git-group-heading">STAGED CHANGES <button id="git-unstage-all" type="button" disabled>Unstage all</button></div><div id="git-staged-list" class="git-file-list"></div>
+              <div class="git-group-heading">UNSTAGED CHANGES <button id="git-stage-all" type="button" disabled>Stage all</button></div><div id="git-unstaged-list" class="git-file-list"></div></div>
+              <div class="git-commit-box"><textarea id="git-commit-message" rows="3" maxlength="500" placeholder="Summary (required)"></textarea><button type="button" class="button button-primary full-width" id="git-commit" disabled>Commit staged changes</button></div>
+            </section>
+            <section class="git-diff-panel"><div class="git-section-title"><span id="git-diff-title">DIFF INSPECTOR</span><span id="git-diff-meta">Select a changed file</span></div><pre id="git-diff-content" class="git-diff-content">Changes will appear here when you select a file.</pre></section>
+          </div>
+          <section class="git-history-panel"><div class="git-section-title"><span>RECENT COMMITS</span><span id="git-remote-summary">No remote detected</span></div><div id="git-commit-history" class="git-commit-history"></div></section>
+        </section>
 
         <section class="workspace-page" id="projects-view" hidden>
           <header class="workspace-page-heading">
