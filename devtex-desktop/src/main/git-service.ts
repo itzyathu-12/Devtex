@@ -132,7 +132,7 @@ export async function getGitStatus(path: string): Promise<GitRepositoryState> {
   return {
     root,
     branch: branch || 'HEAD (detached)',
-    upstream: upstream || /\.\.\.([^ ]+)/.exec(header)?.[1] ?? null,
+    upstream: upstream || /\.\.\.([^ ]+)/.exec(header)?.[1] || null,
     ahead: Number.isFinite(aheadCount) ? aheadCount : Number(aheadBehind?.[1] ?? 0),
     behind: Number.isFinite(behindCount) ? behindCount : Number(aheadBehind?.[2] ?? 0),
     detached: !branch,
