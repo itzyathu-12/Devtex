@@ -582,9 +582,10 @@ function setupGitWorkspace(): void {
     const description = window.prompt('Repository description (optional)') || ''
     const isPrivate = window.confirm('Create this repository as private? Choose Cancel for public.')
     await runGitAction(async () => {
+      await window.api.initializeGitRepository({ path: activeGitPath!, branch: 'main' })
       const repository = await window.api.createGitHubRepository({ name: name.trim(), description, isPrivate })
       await window.api.setGitRemote({ path: activeGitPath!, name: 'origin', url: `https://github.com/${repository.fullName}.git` })
-      setGitMessage(`Created ${repository.fullName} and connected it as origin. Commit your files, then choose Push.`)
+      setGitMessage(`Created ${repository.fullName} and connected it as origin. Stage and commit your files, then choose Push.`)
       addActivity('GitHub repository created', repository.fullName)
     })
   })
