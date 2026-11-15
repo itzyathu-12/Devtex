@@ -268,6 +268,13 @@ const organizerTasks: Record<string, string> = {
   architecture: 'Review the repository architecture and separation of concerns. Identify tightly coupled areas, misplaced responsibilities, confusing module boundaries and opportunities to simplify without overengineering.'
 }
 
+function organizerSafePath(path: string): boolean {
+  const normalized = path.replace(/\\/g, '/')
+  return !!normalized && !normalized.startsWith('/') && !normalized.includes('\\0') &&
+    normalized.split('/').every((part) => part !== '' && part !== '.' && part !== '..') &&
+    !normalized.split('/').some((part) => ['.git', 'node_modules', 'dist', 'build', '.env'].includes(part.toLowerCase()))
+}
+
 function parseOrganizerPlan(raw: string): { summary: string; findings: string[]; operations: RepoOrganizationOperation[] } | null {
   const start = raw.indexOf('{')
   const end = raw.lastIndexOf('}')
@@ -276,18 +283,26 @@ function parseOrganizerPlan(raw: string): { summary: string; findings: string[];
     const value = JSON.parse(raw.slice(start, end + 1)) as Record<string, unknown>
     if (!Array.isArray(value.operations)) return null
     const operations: RepoOrganizationOperation[] = []
-    for (const item of value.operations.slice(0, 8)) {
+    const seen = new Set<string>()
+    for (const item of value.operations.slice(0, 3)) {
       if (!item || typeof item !== 'object') continue
       const op = item as Record<string, unknown>
-      if (typeof op.id !== 'string' || typeof op.reason !== 'string') continue
-      if (op.type === 'move' && typeof op.from === 'string' && typeof op.to === 'string') {
+      if (typeof op.id !== 'string' || typeof op.reason !== 'string' || op.reason.length < 8) continue
+      if (op.type === 'move' && typeof op.from === 'string' && typeof op.to === 'string' &&
+          organizerSafePath(op.from) && organizerSafePath(op.to) && op.from !== op.to &&
+          !seen.has(op.to.toLowerCase())) {
         operations.push({ id: op.id, type: 'move', from: op.from, to: op.to, reason: op.reason })
-      } else if (op.type === 'write' && typeof op.path === 'string' && typeof op.content === 'string') {
+        seen.add(op.to.toLowerCase())
+      } else if (op.type === 'write' && typeof op.path === 'string' && typeof op.content === 'string' &&
+          organizerSafePath(op.path) && op.content.length <= 30000 &&
+          /(^|\\/)(readme|contributing|changelog|docs?)(\\/|\\.|$)/i.test(op.path) &&
+          !seen.has(op.path.toLowerCase())) {
         operations.push({ id: op.id, type: 'write', path: op.path, content: op.content, reason: op.reason })
+        seen.add(op.path.toLowerCase())
       }
     }
     return {
-      summary: typeof value.summary === 'string' ? value.summary : 'Repository organization proposal',
+      summary: typeof value.summary === 'string' ? value.summary.slice(0, 1000) : 'Repository organization proposal',
       findings: Array.isArray(value.findings) ? value.findings.filter((entry): entry is string => typeof entry === 'string').slice(0, 12) : [],
       operations
     }
