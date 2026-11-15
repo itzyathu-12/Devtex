@@ -337,6 +337,11 @@ async function runGitAction(action: () => Promise<unknown>): Promise<void> {
 async function refreshGitWorkspace(): Promise<void> {
   const projectSelect = document.getElementById('git-project-select') as HTMLSelectElement | null
   const selectedPath = activeGitPath || projectSelect?.value || ''
+  if (projectSelect) {
+    projectSelect.replaceChildren(new Option('Choose a registered project…', ''))
+    workspaceProjects.forEach((project) => projectSelect.add(new Option(project.name, project.path)))
+    if (selectedPath && workspaceProjects.some((project) => project.path === selectedPath)) projectSelect.value = selectedPath
+  }
   const refresh = document.getElementById('git-refresh') as HTMLButtonElement | null
   if (!selectedPath) {
     activeGitState = null
