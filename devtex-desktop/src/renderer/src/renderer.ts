@@ -119,7 +119,8 @@ function init(): void {
     setupRepoOrganizer()
     setupTestingEngine()
     setupWorkspacePages()
-    setupGitHubRepositories()
+    setupGitHubTokenLogin()
+  setupGitHubRepositories()
     setupAuthentication()
     setupProfileMenu()
     setupSettings()
@@ -559,6 +560,33 @@ function setupGitWorkspace(): void {
     if (!target || !activeGitPath || !activeGitState) return
     const file = activeGitState.changes.find((item) => item.path === target.dataset.gitFile)
     if (file) void showGitDiff(file)
+  })
+  document.getElementById('git-init')?.addEventListener('click', async () => {
+    if (!activeGitPath) { setGitMessage('Choose a registered project first.', true); return }
+    await runGitAction(async () => {
+      await window.api.initializeGitRepository({ path: activeGitPath!, branch: 'main' })
+      addActivity('Git repository initialized', activeGitPath!)
+    })
+  })
+  document.getElementById('git-add-remote')?.addEventListener('click', async () => {
+    if (!activeGitPath) { setGitMessage('Choose a registered project first.', true); return }
+    const url = window.prompt('Paste the GitHub repository URL (HTTPS or SSH)')
+    if (!url?.trim()) return
+    const name = window.prompt('Remote name', 'origin') || 'origin'
+    await runGitAction(() => window.api.setGitRemote({ path: activeGitPath!, name, url: url.trim() }))
+  })
+  document.getElementById('git-create-remote')?.addEventListener('click', async () => {
+    if (!activeGitPath) { setGitMessage('Choose a registered project first.', true); return }
+    const name = window.prompt('New GitHub repository name')
+    if (!name?.trim()) return
+    const description = window.prompt('Repository description (optional)') || ''
+    const isPrivate = window.confirm('Create this repository as private? Choose Cancel for public.')
+    await runGitAction(async () => {
+      const repository = await window.api.createGitHubRepository({ name: name.trim(), description, isPrivate })
+      await window.api.setGitRemote({ path: activeGitPath!, name: 'origin', url: `https://github.com/${repository.fullName}.git` })
+      setGitMessage(`Created ${repository.fullName} and connected it as origin. Commit your files, then choose Push.`)
+      addActivity('GitHub repository created', repository.fullName)
+    })
   })
   populateProjects()
 }
@@ -1435,6 +1463,35 @@ function setupTestingEngine(): void {
     } finally {
       button.disabled = false
       button.textContent = 'Scan Project for Bugs 🔍'
+    }
+  })
+}
+
+function setupGitHubTokenLogin(): void {
+  const dialog = document.getElementById('github-token-dialog') as HTMLDialogElement | null
+  const form = document.getElementById('github-token-form') as HTMLFormElement | null
+  const input = document.getElementById('github-token-input') as HTMLInputElement | null
+  const message = document.getElementById('github-token-message')
+  const submit = document.getElementById('github-token-submit') as HTMLButtonElement | null
+  const close = (): void => { dialog?.close(); if (input) input.value = '' }
+  document.getElementById('github-token-login')?.addEventListener('click', () => dialog?.showModal())
+  document.getElementById('github-token-close')?.addEventListener('click', close)
+  document.getElementById('github-token-cancel')?.addEventListener('click', close)
+  form?.addEventListener('submit', async (event) => {
+    event.preventDefault()
+    const token = input?.value.trim() ?? ''
+    if (!token) return
+    if (submit) { submit.disabled = true; submit.textContent = 'Connecting…' }
+    if (message) message.textContent = 'Validating token and saving it securely…'
+    try {
+      const status = await window.api.connectGitHubWithToken(token)
+      if (message) message.textContent = status.message || `Connected as @${status.username}.`
+      close()
+      document.getElementById('github-refresh')?.click()
+    } catch (error) {
+      if (message) message.textContent = error instanceof Error ? error.message : 'GitHub token authentication failed.'
+    } finally {
+      if (submit) { submit.disabled = false; submit.textContent = 'Connect securely' }
     }
   })
 }
