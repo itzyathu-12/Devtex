@@ -144,6 +144,24 @@ async function collectFiles(
   return collected
 }
 // this is of chat
+export async function inspectRepositoryForOrganizer(projectPath: string): Promise<string> {
+  const root = resolve(projectPath)
+  const info = await stat(root)
+  if (!info.isDirectory()) throw new Error('Repository path is not a directory.')
+  const files = await collectFiles(root, root, 0, 240)
+  const entries: string[] = []
+  for (const rel of files) {
+    if (isSecretOrExcluded(basename(rel))) continue
+    try {
+      const file = await readFile(safeResolveProjectFile(root, rel), 'utf8')
+      if (file.length > 12000) {
+        entries.push(`FILE ${rel} (truncated to 12 KB)\n${file.slice(0, 12000)}`)
+      } else entries.push(`FILE ${rel}\n${file}`)
+    } catch { entries.push(`FILE ${rel} [unreadable]`) }
+  }
+  return `Repository root: ${root}\nInventory (${files.length} files, capped at 240):\n${files.map((f) => '- ' + f).join('\n')}\n\nFile contents (safe text files only):\n${entries.join('\n\n')}`
+}
+
 export async function inspectProject(
   projectPath: string,
   query?: string,
