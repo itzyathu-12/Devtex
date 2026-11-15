@@ -201,6 +201,13 @@ export class GitHubRepositoryService {
     return repository
   }
 
+  async getGitAccessToken(): Promise<string | null> {
+    const credential = await this.loadCredential()
+    if (!credential) return null
+    const usable = await this.getUsableCredential(credential)
+    return usable.accessToken
+  }
+
   async getRepositories(): Promise<GitHubRepositoryResult> {
     const credential = await this.loadCredential()
     if (!credential) {
