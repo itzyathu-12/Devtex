@@ -30,6 +30,8 @@ declare global {
     commitGitChanges(request: { path: string; message: string }): Promise<void>
     switchGitBranch(request: { path: string; branch: string; create?: boolean }): Promise<void>
     syncGitRepository(request: { path: string; action: 'fetch' | 'pull' | 'push' }): Promise<void>
+    setGitRemote(request: { path: string; name: string; url: string }): Promise<void>
+    initializeGitRepository(request: { path: string; branch?: string }): Promise<void>
     openExternal(url: string): Promise<void>
     onAuthCallback(callback: (url: string) => void): () => void
     connectGitHubRepositories(): Promise<GitHubConnectionStatus>
