@@ -175,7 +175,7 @@ function setupNavigation(): void {
   const descriptions: Record<string, string> = {
     Dashboard: 'Build, test, and improve your software from one workspace.',
     Projects: 'Browse, search, and manage your local development projects.',
-    'Source Control': 'Review local Git changes, commits, branches, and remote sync.'
+    'Source Control': 'Review local Git changes, commits, branches, and remote sync.',
     'AI Chat': 'Chat, explore local projects, and review code with AI.',
     'Testing Engine': 'Run DEVTEX static defect analysis against a selected project.',
     Reports: 'Review scan history and findings captured during this session.',
