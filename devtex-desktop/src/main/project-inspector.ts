@@ -1,11 +1,13 @@
 import type { BrowserWindow, OpenDialogOptions } from 'electron'
-import { copyFile, mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, readdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import type {
   DetectedBug,
   ProjectBugScanResult,
   ProjectFileEditRequest,
-  ProjectFileEditResult
+  ProjectFileEditResult,
+  RepoOrganizationApplyRequest,
+  RepoOrganizationApplyResult
 } from '../shared/settings'
 
 const ignoredDirectories = new Set([
@@ -323,6 +325,69 @@ export async function applyProjectFileEdit(
       error: error instanceof Error ? error.message : 'Failed to apply file edit.'
     }
   }
+}
+
+export async function applyRepoOrganization(
+  request: RepoOrganizationApplyRequest
+): Promise<RepoOrganizationApplyResult> {
+  const applied: RepoOrganizationApplyResult['applied'] = []
+  const failed: RepoOrganizationApplyResult['failed'] = []
+  if (!request.projectPath || !Array.isArray(request.operations) || request.operations.length === 0) {
+    throw new Error('Choose at least one proposed operation.')
+  }
+  if (request.operations.length > 20) throw new Error('Apply at most 20 organization operations at a time.')
+  const root = resolve(request.projectPath)
+  const rootInfo = await stat(root)
+  if (!rootInfo.isDirectory()) throw new Error('Selected project path is not a directory.')
+
+  for (const operation of request.operations) {
+    try {
+      if (!operation.id || !operation.reason) throw new Error('Operation is missing its ID or explanation.')
+      if (operation.type === 'move') {
+        const source = safeResolveProjectFile(root, operation.from)
+        const destination = safeResolveProjectFile(root, operation.to)
+        if (isSecretOrExcluded(basename(source)) || isSecretOrExcluded(basename(destination))) {
+          throw new Error('Moving sensitive, binary, or excluded files is not supported.')
+        }
+        const sourceInfo = await stat(source)
+        if (!sourceInfo.isFile()) throw new Error('Only individual files can be moved.')
+        try {
+          await stat(destination)
+          throw new Error('Destination already exists; refusing to overwrite it.')
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+        }
+        await mkdir(dirname(destination), { recursive: true })
+        await rename(source, destination)
+        applied.push({ id: operation.id, path: operation.to })
+      } else if (operation.type === 'write') {
+        if (typeof operation.content !== 'string' || operation.content.length > 200000) {
+          throw new Error('New or updated file content is invalid or exceeds 200 KB.')
+        }
+        const target = safeResolveProjectFile(root, operation.path)
+        if (isSecretOrExcluded(basename(target))) {
+          throw new Error('Writing sensitive, binary, or excluded files is prohibited.')
+        }
+        let backupPath: string | undefined
+        try {
+          await stat(target)
+          const backup = target + '.devtex.bak'
+          await copyFile(target, backup)
+          backupPath = relative(root, backup).replace(/\\/g, '/')
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+        }
+        await mkdir(dirname(target), { recursive: true })
+        await writeFile(target, operation.content, 'utf8')
+        applied.push({ id: operation.id, path: operation.path, backupPath })
+      } else {
+        throw new Error('Unsupported organization operation.')
+      }
+    } catch (error) {
+      failed.push({ id: operation.id || 'unknown', error: error instanceof Error ? error.message : 'Operation failed.' })
+    }
+  }
+  return { success: failed.length === 0, applied, failed }
 }
 
 export async function scanProjectForBugs(
