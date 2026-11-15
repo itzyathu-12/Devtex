@@ -49,7 +49,7 @@ function getMessage(value: unknown): string | undefined {
 function parseRetryMessage(response: Response, body: unknown): string {
   const message = getMessage(body)
   if (response.status === 401) {
-    return 'GitHub authorization expired or was revoked. Connect GitHub again.'
+    return 'GitHub rejected this credential. Check that you pasted a valid Personal Access Token (not your account password) and that it has not expired or been revoked.'
   }
   if (response.status === 403 && response.headers.get('x-ratelimit-remaining') === '0') {
     const retryAfter = response.headers.get('retry-after')
