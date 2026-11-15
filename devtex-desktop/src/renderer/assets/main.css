@@ -3300,3 +3300,59 @@ input:focus, textarea:focus, select:focus { border-color: #65c7a7 !important; bo
   .topbar { padding: 0 15px; }
   .page-content { padding: 23px 15px; }
 }
+
+
+/* DEVTEX home: workspace-first information architecture */
+#dashboard-view.devtex-home { width:100%; }
+.home-commandbar { display:flex; align-items:center; justify-content:space-between; min-height:38px; padding:0 0 13px; border-bottom:1px solid #27332f; }
+.home-context { display:flex; align-items:center; gap:9px; color:#91a49b; font:10px var(--font-mono); letter-spacing:1.1px; }
+.live-mark { width:7px; height:7px; border-radius:50%; background:#79d8bb; box-shadow:0 0 10px #79d8bb88; }
+.context-separator { color:#52625a; }
+.home-commandbar .button { min-height:32px; padding:0 12px; font-size:11px; }
+.home-intro { display:flex; align-items:flex-end; justify-content:space-between; gap:20px; padding:34px 0 30px; }
+.home-intro h1 { margin:9px 0 7px; font-size:clamp(30px,3.5vw,43px); letter-spacing:-1.8px; font-weight:600; }
+.home-intro h1 span { color:#8de0c4; }
+.home-intro .subtitle { margin:0; font-size:12px; }
+.home-shortcut { display:flex; align-items:center; gap:5px; color:#74877d; font:9px var(--font-mono); letter-spacing:1px; }
+.home-shortcut kbd { display:grid; place-items:center; min-width:22px; height:22px; border:1px solid #35443e; border-radius:4px; background:#111a17; color:#c2d3ca; font:11px var(--font-mono); }
+.home-shortcut span { margin-left:7px; }
+.home-workbench { display:grid; grid-template-columns:minmax(0,1.65fr) minmax(260px,.85fr); gap:34px; align-items:start; }
+.home-main-column,.home-side-column { min-width:0; }
+.home-section { padding:0 0 26px; }
+.home-section + .home-section { padding-top:23px; border-top:1px solid #26332e; }
+.home-section-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:15px; }
+.home-section-heading > div { display:flex; align-items:center; gap:11px; }
+.home-section-heading h2 { margin:0; color:#e4eee8; font-size:14px; font-weight:550; letter-spacing:-.2px; }
+.section-index { color:#79cdb0; font:10px var(--font-mono); letter-spacing:.5px; }
+.home-section-heading .text-button { font-size:11px; }
+.home-project-list { min-height:120px; }
+.home-empty-state { min-height:185px; display:flex; align-items:flex-start; justify-content:center; padding:25px; border:1px dashed #34443d; border-radius:6px; background:linear-gradient(120deg,#111a17,#0e1412); }
+.home-empty-state .empty-icon { margin-bottom:8px; }
+.home-empty-state h3 { margin:7px 0; font-size:14px; }
+.home-empty-state p { max-width:350px; text-align:left; line-height:1.7; }
+.home-github-row { display:flex; align-items:center; gap:13px; padding:15px 0 18px; }
+.github-mark { display:grid; place-items:center; width:38px; height:38px; flex:0 0 38px; border:1px solid #35483f; border-radius:7px; background:#14221c; color:#a7e5ca; font-size:21px; }
+.home-github-copy { display:flex; flex:1; flex-direction:column; gap:5px; min-width:0; }
+.home-github-copy strong { color:#dce9e1; font-size:12px; font-weight:550; }
+.home-github-copy span { color:#84978d; font-size:10px; line-height:1.5; }
+.home-github-row .button { flex:0 0 auto; }
+.home-inline-status { color:#80958a; font:9px var(--font-mono); letter-spacing:.8px; }
+.home-section .github-repository-toolbar { margin-top:8px; }
+.home-section .github-repository-actions { display:flex; justify-content:flex-end; gap:7px; margin-top:10px; }
+.home-section .github-repository-actions .button { min-height:28px; font-size:10px; }
+.home-tool-card { padding:19px; border:1px solid #34463e; border-radius:7px; background:linear-gradient(145deg,#15221d,#101714 72%); }
+.tool-card-top { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.tool-status { display:flex; align-items:center; gap:6px; color:#9bcdb6; font:9px var(--font-mono); }
+.tool-status i { width:6px; height:6px; border-radius:50%; background:#79d8a9; }
+.tool-glyph { display:grid; place-items:center; width:40px; height:40px; margin:24px 0 15px; border:1px solid #3c6554; border-radius:8px; background:#193329; color:#a5e9ca; font-size:22px; }
+.home-tool-card h2 { margin:0 0 8px; font-size:16px; color:#edf5f0; }
+.home-tool-card p { margin:0; color:#91a399; font-size:11px; line-height:1.7; }
+.home-tool-card .button { display:flex; align-items:center; justify-content:space-between; }
+.home-tool-card .scan-result { margin-top:10px; }
+.home-activity { margin-top:28px; }
+.home-activity .activity-list { border-top:1px solid #26342e; }
+.home-activity .activity-row { padding:13px 0; border-bottom:1px solid #202d27; }
+.home-activity .activity-row time { font-size:9px; }
+#dashboard-view .stat-card,#dashboard-view .stats-grid,#dashboard-view .content-grid,#dashboard-view .activity-panel,#dashboard-view .github-repositories-panel { display:none !important; }
+@media(max-width:900px) { .home-workbench { grid-template-columns:minmax(0,1fr); gap:15px; } .home-side-column { display:grid; grid-template-columns:1fr 1fr; gap:18px; } .home-activity { margin-top:0; } }
+@media(max-width:620px) { .home-intro { align-items:flex-start; flex-direction:column; padding:25px 0; } .home-shortcut { display:none; } .home-side-column { grid-template-columns:1fr; } .home-github-row { flex-wrap:wrap; } .home-github-copy { flex-basis:calc(100% - 55px); } }
