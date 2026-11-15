@@ -252,7 +252,6 @@ function showPage(page: WorkspacePage, description = ''): void {
 
 let activeGitPath: string | null = null
 let activeGitState: GitRepositoryState | null = null
-let activeGitDiffFile: GitFileChange | null = null
 
 function setGitMessage(message: string, error = false): void {
   const element = document.getElementById('git-status-message')
