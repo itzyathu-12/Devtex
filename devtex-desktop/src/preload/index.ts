@@ -18,7 +18,9 @@ import type {
   ProjectFileReadResult,
   ProjectFileEditRequest,
   ProjectFileEditResult,
-  ProjectBugScanResult
+  ProjectBugScanResult,
+  RepoOrganizationApplyRequest,
+  RepoOrganizationApplyResult
 } from '../shared/settings'
 
 // Custom APIs for renderer
