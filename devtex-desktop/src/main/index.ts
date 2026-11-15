@@ -26,6 +26,7 @@ import {
   inspectProject,
   readProjectFile,
   applyProjectFileEdit,
+  applyRepoOrganization,
   scanProjectForBugs
 } from './project-inspector'
 import type { GitHubConnectionStatus } from '../shared/github'
@@ -34,7 +35,8 @@ import type {
   GeminiChatRequest,
   GeminiChatMessage,
   ProjectFileEditRequest,
-  ProjectFileReadRequest
+  ProjectFileReadRequest,
+  RepoOrganizationApplyRequest
 } from '../shared/settings'
 
 declare const __GITHUB_OAUTH_CLIENT_ID__: string
@@ -354,6 +356,19 @@ ipcMain.handle('project:apply-edit', async (event, req: unknown) => {
   }
   return applyProjectFileEdit(req as ProjectFileEditRequest);
 });
+
+ipcMain.handle('project:apply-organization', async (event, req: unknown) => {
+  assertTrustedSender(event)
+  if (!req || typeof req !== 'object' || !('projectPath' in req) || !('operations' in req)) {
+    throw new Error('Invalid repository organization request.')
+  }
+  const value = req as RepoOrganizationApplyRequest
+  const projects = await getProjects()
+  if (!projects.some((project) => project.path === value.projectPath)) {
+    throw new Error('Organization changes are limited to registered DEVTEX projects.')
+  }
+  return applyRepoOrganization(value)
+})
 
 ipcMain.handle('project:scan-bugs', async (event, projectPath: unknown) => {
   assertTrustedSender(event);
