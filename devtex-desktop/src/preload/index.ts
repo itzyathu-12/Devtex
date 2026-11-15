@@ -3,7 +3,8 @@ import { electronAPI } from '@electron-toolkit/preload'
 import type {
   GitHubConnectionStatus,
   GitHubProfile,
-  GitHubRepositoryResult
+  GitHubRepositoryResult,
+  GitHubRepository
 } from '../shared/github'
 import type { AppPreferences, AppRuntimeInfo } from '../shared/settings'
 import type { GitRepositoryState, GitDiffResult } from '../shared/git'
