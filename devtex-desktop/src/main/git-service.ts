@@ -64,7 +64,7 @@ async function git(cwd: string, args: string[], githubToken?: string | null): Pr
       ...(githubToken ? { env: {
         ...process.env,
         GIT_CONFIG_COUNT: '1',
-        GIT_CONFIG_KEY_0: 'http.extraheader',
+        GIT_CONFIG_KEY_0: 'http.https://github.com/.extraheader',
         GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${Buffer.from(`x-access-token:${githubToken}`).toString('base64')}`
       } } : {})
     })
@@ -252,6 +252,6 @@ export async function initializeRepository(path: string, branch = 'main'): Promi
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,60}$/.test(branch)) throw new Error('Enter a valid initial branch name.')
   const root = await realpath(path)
   const existing = await git(root, ['rev-parse', '--show-toplevel']).then(() => true).catch(() => false)
-  if (existing) throw new Error('This folder is already inside a Git repository.')
+  if (existing) return
   await git(root, ['init', '--initial-branch', branch])
 }
