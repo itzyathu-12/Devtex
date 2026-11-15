@@ -54,7 +54,7 @@ export async function getGitStatus(path: string): Promise<GitRepositoryState> {
     git(root, ['status', '--porcelain=v1', '--branch']),
     git(root, ['branch', '--show-current']),
     git(root, ['branch', '--format=%(refname:short)']),
-    git(root, ['log', '-8', '--date=iso-strict', '--pretty=format:%H%x1f%h%x1f%s%x1f%an%x1f%aI']),
+    git(root, ['log', '-8', '--date=iso-strict', '--pretty=format:%H%x1f%h%x1f%s%x1f%an%x1f%aI']).catch(() => ''),
     git(root, ['remote', '-v'])
   ])
   const header = status.split('\n')[0] || ''
