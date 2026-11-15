@@ -64,12 +64,24 @@ function assertTrustedSender(event: IpcMainInvokeEvent): void {
   }
 }
 
-async function getRegisteredGitPath(value: unknown): Promise<string> {
-  if (typeof value !== 'string' || !value.trim()) throw new Error('Choose a registered project.')
+async function getRegisteredProjectPath(value: unknown, purpose = 'This action'): Promise<string> {
+  if (typeof value !== 'string' || !value.trim() || value.length > 4096) {
+    throw new Error('Choose a valid registered project.')
+  }
+
+  const requestedPath = value.trim()
   const projects = await getProjects()
-  const project = projects.find((item) => item.path === value)
-  if (!project) throw new Error('Git actions are limited to folders registered in your DEVTEX workspace.')
+  const project = projects.find((item) => item.path === requestedPath)
+
+  if (!project) {
+    throw new Error(`${purpose} is limited to folders registered in your DEVTEX workspace.`)
+  }
+
   return project.path
+}
+
+async function getRegisteredGitPath(value: unknown): Promise<string> {
+  return getRegisteredProjectPath(value, 'Git actions')
 }
 
 function deliverAuthCallback(): void {
@@ -292,7 +304,7 @@ ipcMain.handle('ai:chat', async (event, value: unknown) => {
     (value as { projectPath: string }).projectPath.trim()
   ) {
     const rawReq = value as GeminiChatRequest;
-    const projectPath = rawReq.projectPath!.trim();
+    const projectPath = await getRegisteredProjectPath(rawReq.projectPath, 'AI project context');
     if (Array.isArray(rawReq.messages) && rawReq.messages.length > 0) {
       const lastUserIdx = rawReq.messages.map((m) => m.role).lastIndexOf('user');
       const lastUserMessage = lastUserIdx !== -1 ? rawReq.messages[lastUserIdx] : undefined;
@@ -343,7 +355,8 @@ ipcMain.handle('project:read-file', async (event, req: unknown) => {
   }
   const { projectPath, filePath } = req as ProjectFileReadRequest;
   try {
-    const content = await readProjectFile(projectPath, filePath);
+    const registeredPath = await getRegisteredProjectPath(projectPath, 'Project file access');
+    const content = await readProjectFile(registeredPath, filePath);
     return { success: true, content };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Failed to read file.' };
@@ -355,15 +368,16 @@ ipcMain.handle('project:apply-edit', async (event, req: unknown) => {
   if (!req || typeof req !== 'object' || !('projectPath' in req) || !('filePath' in req)) {
     throw new Error('Invalid project file edit request.');
   }
-  return applyProjectFileEdit(req as ProjectFileEditRequest);
+  const value = req as ProjectFileEditRequest;
+  const registeredPath = await getRegisteredProjectPath(value.projectPath, 'Project file edits');
+  return applyProjectFileEdit({ ...value, projectPath: registeredPath });
 });
 
 ipcMain.handle('project:organizer-context', async (event, projectPath: unknown) => {
   assertTrustedSender(event)
   if (typeof projectPath !== 'string' || !projectPath.trim()) throw new Error('Invalid repository path.')
-  const projects = await getProjects()
-  if (!projects.some((project) => project.path === projectPath)) throw new Error('Organizer context is limited to registered DEVTEX projects.')
-  return inspectRepositoryForOrganizer(projectPath)
+  const registeredPath = await getRegisteredProjectPath(projectPath, 'Organizer context')
+  return inspectRepositoryForOrganizer(registeredPath)
 })
 
 ipcMain.handle('project:apply-organization', async (event, req: unknown) => {
@@ -372,11 +386,8 @@ ipcMain.handle('project:apply-organization', async (event, req: unknown) => {
     throw new Error('Invalid repository organization request.')
   }
   const value = req as RepoOrganizationApplyRequest
-  const projects = await getProjects()
-  if (!projects.some((project) => project.path === value.projectPath)) {
-    throw new Error('Organization changes are limited to registered DEVTEX projects.')
-  }
-  return applyRepoOrganization(value)
+  const registeredPath = await getRegisteredProjectPath(value.projectPath, 'Organization changes')
+  return applyRepoOrganization({ ...value, projectPath: registeredPath })
 })
 
 ipcMain.handle('project:scan-bugs', async (event, projectPath: unknown) => {
@@ -384,6 +395,7 @@ ipcMain.handle('project:scan-bugs', async (event, projectPath: unknown) => {
   if (typeof projectPath !== 'string' || !projectPath.trim()) {
     throw new Error('Invalid project path for bug scan.');
   }
+  const registeredPath = await getRegisteredProjectPath(projectPath, 'Bug scanning');
   let aiChatCallback: ((prompt: string) => Promise<string>) | undefined;
   try {
     const provider = await getCurrentAIProvider();
@@ -402,7 +414,7 @@ ipcMain.handle('project:scan-bugs', async (event, projectPath: unknown) => {
     // Fall back to heuristic scanning without failing
   }
   const ignored = await getIgnoredBugs();
-  return scanProjectForBugs(projectPath.trim(), aiChatCallback, ignored);
+  return scanProjectForBugs(registeredPath, aiChatCallback, ignored);
 });
 
 ipcMain.handle('bugs:get-ignored', async (event) => {
