@@ -22,36 +22,19 @@
         </div>
       </div>
 
-      <div class="nav-label">WORKSPACE</div>
+      <div class="nav-label">BUILD</div>
       <nav class="navigation">
-        <button class="nav-item active" data-page="Dashboard">
-          <span class="nav-icon">◫</span> Dashboard
-        </button>
-        <button class="nav-item" data-page="Projects">
-          <span class="nav-icon">▧</span> Projects
-        </button>
-        <button class="nav-item" data-page="AI Chat">
-          <span class="nav-icon">✦</span> AI Chat
-        </button>
-        <button class="nav-item" data-page="Testing Engine">
-          <span class="nav-icon">⌘</span> Testing Engine
-          <span class="nav-count">BETA</span>
-        </button>
-        <button class="nav-item" data-page="Reports">
-          <span class="nav-icon">▤</span> Reports
-        </button>
+        <button class="nav-item active" data-page="Dashboard"><span class="nav-icon">⌂</span> Overview</button>
+        <button class="nav-item" data-page="Projects"><span class="nav-icon">▤</span> Codebases</button>
+        <button class="nav-item" data-page="AI Chat"><span class="nav-icon">✳</span> Assistant</button>
+        <button class="nav-item" data-page="Testing Engine"><span class="nav-icon">⌁</span> Diagnostics <span class="nav-count">BETA</span></button>
+        <button class="nav-item" data-page="Reports"><span class="nav-icon">◷</span> Run history</button>
       </nav>
-
-      <div class="nav-label tools-label">TOOLS</div>
+      <div class="nav-label tools-label">ACCOUNT</div>
       <nav class="navigation">
-        <button class="nav-item" data-page="Profile">
-          <span class="nav-icon">👤</span> Profile
-        </button>
-        <button class="nav-item" data-page="Settings">
-          <span class="nav-icon">⚙</span> Settings
-        </button>
+        <button class="nav-item" data-page="Profile"><span class="nav-icon">◎</span> Identity</button>
+        <button class="nav-item" data-page="Settings"><span class="nav-icon">⚙</span> Preferences</button>
       </nav>
-
       <div class="sidebar-bottom">
         <div class="system-indicator"><span></span> Desktop environment</div>
         <div class="sidebar-version">DEVELOPMENT BUILD</div>
@@ -127,89 +110,45 @@
 
       <section class="page-content">
         <div id="dashboard-view" class="devtex-home">
-          <header class="home-commandbar">
-            <div class="home-context">
-              <span class="live-mark"></span>
-              <span>LOCAL WORKSPACE</span>
-              <span class="context-separator">/</span>
-              <span id="home-project-total">0 PROJECTS</span>
+          <div class="workbench-topline">
+            <div class="workbench-path"><span class="path-root">D:</span><span>/</span><strong>WORKSPACE</strong><span class="path-divider">·</span><span id="home-project-total">0 PROJECTS</span></div>
+            <div class="workbench-actions">
+              <span class="environment-tag"><i></i> LOCAL</span>
+              <button type="button" class="button button-primary" id="new-project">＋ Open codebase</button>
             </div>
-            <button type="button" class="button button-primary" id="new-project"><span>＋</span> Add project</button>
-          </header>
-
-          <section class="home-intro">
-            <div>
-              <div class="eyebrow">DEVTEX / DEVELOPER ENVIRONMENT</div>
-              <h1 id="page-title">Make something <span>work.</span></h1>
-              <p class="subtitle" id="page-subtitle">Your projects, source code and quality tools in one place.</p>
-            </div>
-            <div class="home-shortcut"><kbd>⌘</kbd><kbd>K</kbd><span>QUICK ACTIONS</span></div>
-          </section>
-
-          <div class="home-workbench">
-            <section class="home-main-column">
-              <section class="home-section projects-section">
-                <div class="home-section-heading">
-                  <div><span class="section-index">01</span><h2>Recent projects</h2></div>
-                  <button type="button" class="text-button" id="view-projects">All projects ↗</button>
-                </div>
-                <div id="project-list" class="project-list home-project-list">
-                  <div class="empty-state home-empty-state">
-                    <div class="empty-icon">⌘</div>
-                    <h3>No projects in this workspace</h3>
-                    <p>Add an existing codebase to start inspecting, testing and improving it with DEVTEX.</p>
-                    <button type="button" class="button button-secondary" id="add-first-project">＋ Open a local project</button>
-                  </div>
-                </div>
-              </section>
-
-              <section class="home-section source-preview">
-                <div class="home-section-heading">
-                  <div><span class="section-index">02</span><h2>GitHub connection</h2></div>
-                  <span class="home-inline-status" id="github-connection-label">NOT CONNECTED</span>
-                </div>
-                <div class="home-github-row">
-                  <div class="github-mark">⌘</div>
-                  <div class="home-github-copy">
-                    <strong>Bring your repositories into DEVTEX</strong>
-                    <span>Connect GitHub to access repositories associated with your account.</span>
-                  </div>
-                  <button type="button" class="button button-secondary" id="home-connect-github">Connect GitHub</button>
-                </div>
-                <div class="github-repository-toolbar">
-                  <input id="github-repository-search" type="search" placeholder="Filter repositories" aria-label="Search GitHub repositories" disabled />
-                  <span id="github-repository-count" class="muted"></span>
-                </div>
-                <p id="github-repository-message" class="github-repository-message" role="status">Your repositories will appear here after connecting.</p>
-                <div id="github-repository-list" class="github-repository-list" aria-live="polite"></div>
-                <div class="github-repository-actions">
-                  <button type="button" class="button button-secondary" id="github-refresh" disabled>Refresh</button>
-                  <button type="button" class="button button-secondary" id="github-disconnect" disabled>Disconnect</button>
-                </div>
-              </section>
+          </div>
+          <div class="workbench-heading">
+            <div><div class="eyebrow">DEVTEX / WORKSPACE</div><h1 id="page-title">Your code, <em>in motion.</em></h1><p class="subtitle" id="page-subtitle">Pick up where you left off.</p></div>
+            <div class="heading-mark" aria-hidden="true"><span>D</span><i></i><i></i><i></i></div>
+          </div>
+          <div class="workbench-grid">
+            <section class="codebase-area">
+              <div class="area-heading"><span class="area-marker">01</span><h2>Open codebases</h2><span class="area-rule"></span><button type="button" class="text-button" id="view-projects">Browse all ↗</button></div>
+              <div id="project-list" class="project-list home-project-list">
+                <div class="empty-state home-empty-state"><div class="empty-icon">⌘</div><h3>Nothing open yet</h3><p>Choose a local folder. DEVTEX will keep your project context close while you build.</p><button type="button" class="button button-secondary" id="add-first-project">＋ Open a folder</button></div>
+              </div>
+              <div class="area-heading github-heading"><span class="area-marker">02</span><h2>Remote repositories</h2><span class="area-rule"></span><span id="github-connection-label" class="home-inline-status">OFFLINE</span></div>
+              <div class="remote-strip">
+                <div class="remote-symbol">GH</div><div class="remote-copy"><strong>GitHub</strong><span>Repositories linked to your account</span></div>
+                <button type="button" class="button button-secondary" id="home-connect-github">Connect ↗</button>
+              </div>
+              <div class="github-repository-toolbar"><input id="github-repository-search" type="search" placeholder="Filter repositories" aria-label="Search GitHub repositories" disabled /><span id="github-repository-count" class="muted"></span></div>
+              <p id="github-repository-message" class="github-repository-message" role="status">Connect an account to load remote repositories.</p>
+              <div id="github-repository-list" class="github-repository-list" aria-live="polite"></div>
+              <div class="github-repository-actions"><button type="button" class="button button-secondary" id="github-refresh" disabled>Refresh</button><button type="button" class="button button-secondary" id="github-disconnect" disabled>Disconnect</button></div>
             </section>
-
-            <aside class="home-side-column">
-              <section class="home-tool-card">
-                <div class="tool-card-top"><span class="section-index">03 / QUALITY</span><span class="tool-status"><i></i> AVAILABLE</span></div>
-                <div class="tool-glyph">⌘</div>
-                <h2>Testing Engine</h2>
-                <p>Inspect a project for suspicious patterns, defects and potential security issues.</p>
-                <div style="margin: 18px 0 10px; width: 100%;">
-                  <select id="engine-project-select" style="width:100%;min-height:36px;padding:0 10px;border:1px solid #35423e;border-radius:5px;color:#e8eaf2;background:#101715;font-size:11px;">
-                    <option value="">Select project to scan...</option>
-                  </select>
-                </div>
-                <button type="button" class="button button-primary full-width" id="run-scan">Run project scan <span>↗</span></button>
-                <div id="scan-result" class="scan-result" role="status"></div>
-              </section>
-
-              <section class="home-activity">
-                <div class="home-section-heading"><div><span class="section-index">04</span><h2>Activity stream</h2></div><span class="home-inline-status">SESSION</span></div>
-                <div id="activity-list" class="activity-list">
-                  <div class="activity-row"><span class="activity-dot purple-dot"></span><div class="activity-copy"><strong>Workspace initialized</strong><span>DEVTEX is ready for your projects.</span></div><time>NOW</time></div>
-                </div>
-              </section>
+            <aside class="workbench-inspector">
+              <div class="inspector-label"><span class="inspector-live"></span> TOOLCHAIN / 01</div>
+              <div class="diagnostic-emblem"><span>⌁</span><b></b></div>
+              <div class="inspector-kicker">DEVTEX MODULE</div><h2>Diagnostics</h2>
+              <p>Run a static inspection against a selected codebase. Findings are collected in the run history.</p>
+              <label class="field-caption" for="engine-project-select">TARGET CODEBASE</label>
+              <select id="engine-project-select"><option value="">Choose a project…</option></select>
+              <button type="button" class="button button-primary full-width" id="run-scan">Start inspection <span>↗</span></button>
+              <div id="scan-result" class="scan-result" role="status"></div>
+              <div class="inspector-divider"></div>
+              <div class="activity-heading"><span>RECENT EVENTS</span><small>THIS SESSION</small></div>
+              <div id="activity-list" class="activity-list"><div class="activity-row"><span class="activity-dot purple-dot"></span><div class="activity-copy"><strong>Workspace ready</strong><span>Waiting for your first project.</span></div><time>NOW</time></div></div>
             </aside>
           </div>
         </div>
