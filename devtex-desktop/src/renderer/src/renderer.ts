@@ -975,6 +975,7 @@ function setupTestingEngine(): void {
 
 function setupGitHubRepositories(): void {
   const connectButton = document.getElementById('connect-github')
+  document.getElementById('home-connect-github')?.addEventListener('click', () => connectButton?.click())
   const refreshButton = document.getElementById('github-refresh') as HTMLButtonElement | null
   const disconnectButton = document.getElementById('github-disconnect') as HTMLButtonElement | null
   const searchInput = document.getElementById('github-repository-search') as HTMLInputElement | null
