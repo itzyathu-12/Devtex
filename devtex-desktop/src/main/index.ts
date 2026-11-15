@@ -1,5 +1,6 @@
 import { app, shell, BrowserWindow, ipcMain, type IpcMainInvokeEvent } from 'electron'
 import { join, basename } from 'path'
+import { randomUUID } from 'node:crypto'
 // Replaced @electron-toolkit utils with minimal stubs
 const electronApp = { setAppUserModelId: (_id: string) => { } } as const;
 const optimizer = { watchWindowShortcuts: (_window: any) => { } } as const;
@@ -8,7 +9,7 @@ const is = { dev: process.env.NODE_ENV !== 'production' } as const;
 import icon from '../../resources/icon.png?asset'
 import { GitHubRepositoryService } from './github-repositories'
 import { getCurrentAIProvider } from './providers/provider-factory'
-import { getGitStatus, getGitDiff, stageFiles, unstageFiles, commitChanges, switchBranch, syncRepository, setGitRemote, initializeRepository } from './git-service'
+import { getGitStatus, getGitDiff, stageFiles, unstageFiles, commitChanges, switchBranch, syncRepository, setGitRemote, initializeRepository, cloneGitRepository } from './git-service'
 
 import {
   getPreferences,
@@ -157,6 +158,23 @@ ipcMain.handle('github:create-repository', async (event, request: unknown) => {
   const value = request as { name?: unknown; description?: unknown; isPrivate?: unknown }
   return githubRepositories.createRepository(value.name, value.description, value.isPrivate)
 })
+ipcMain.handle('github:clone-repository', async (event, value: unknown) => {
+  assertTrustedSender(event)
+  if (typeof value !== 'string') throw new Error('Invalid GitHub repository URL.')
+  const destination = await chooseProjectFolder(mainWindow)
+  if (!destination) return null
+  const githubToken = await githubRepositories.getGitAccessToken()
+  const clonedPath = await cloneGitRepository(value, destination.path, githubToken)
+  const project: WorkspaceProject = {
+    id: randomUUID(),
+    name: basename(clonedPath),
+    path: clonedPath,
+    addedAt: new Date().toISOString()
+  }
+  await addProject(project)
+  return project
+})
+
 
 ipcMain.handle('github:repositories', async (event) => {
   assertTrustedSender(event)
