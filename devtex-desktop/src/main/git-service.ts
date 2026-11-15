@@ -53,14 +53,20 @@ function findGitExecutable(): string {
   return found
 }
 
-async function git(cwd: string, args: string[]): Promise<string> {
+async function git(cwd: string, args: string[], githubToken?: string | null): Promise<string> {
   const executable = findGitExecutable()
   try {
     const { stdout } = await execFileAsync(executable, ['-C', cwd, ...args], {
       windowsHide: true,
       timeout: 30000,
       maxBuffer: MAX_BUFFER,
-      encoding: 'utf8'
+      encoding: 'utf8',
+      ...(githubToken ? { env: {
+        ...process.env,
+        GIT_CONFIG_COUNT: '1',
+        GIT_CONFIG_KEY_0: 'http.extraheader',
+        GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${Buffer.from(`x-access-token:${githubToken}`).toString('base64')}`
+      } } : {})
     })
     return stdout
   } catch (error) {
@@ -131,7 +137,9 @@ export async function getGitStatus(path: string): Promise<GitRepositoryState> {
   const divergence = upstream
     ? await git(root, ['rev-list', '--left-right', '--count', `HEAD...${upstream}`]).catch(() => '')
     : ''
-  const [aheadCount, behindCount] = divergence.trim().split(/\s+/).map((value) => Number(value))
+  const divergenceParts = divergence.trim() ? divergence.trim().split(/\s+/).map(Number) : []
+  const aheadCount = divergenceParts[0]
+  const behindCount = divergenceParts[1]
   const commits: GitCommit[] = logOutput.split('\n').filter(Boolean).map((line) => {
     const [hash, shortHash, subject, author, date] = line.split('\x1f')
     return { hash, shortHash, subject, author, date }
@@ -194,10 +202,10 @@ export async function switchBranch(path: string, branch: string, create = false)
   }
   await git(root, create ? ['switch', '-c', branch] : ['switch', branch])
 }
-export async function syncRepository(path: string, action: 'fetch' | 'pull' | 'push'): Promise<void> {
+export async function syncRepository(path: string, action: 'fetch' | 'pull' | 'push', githubToken?: string | null): Promise<void> {
   const root = await repositoryRoot(path)
   if (action === 'fetch') {
-    await git(root, ['fetch', '--all', '--prune'])
+    await git(root, ['fetch', '--all', '--prune'], githubToken)
     return
   }
 
@@ -210,19 +218,19 @@ export async function syncRepository(path: string, action: 'fetch' | 'pull' | 'p
   if (!remote) throw new Error('No remote is configured. Add a GitHub remote before syncing.')
 
   if (action === 'pull') {
-    if (upstream) await git(root, ['pull', '--ff-only'])
+    if (upstream) await git(root, ['pull', '--ff-only'], githubToken)
     else {
       const candidate = `refs/remotes/${remote}/${branch}`
       const exists = await git(root, ['show-ref', '--verify', '--quiet', candidate]).then(() => true).catch(() => false)
       if (!exists) throw new Error(`No upstream exists for ${branch}. Fetch first or publish this branch.`)
-      await git(root, ['pull', '--ff-only', remote, branch])
+      await git(root, ['pull', '--ff-only', remote, branch], githubToken)
       await git(root, ['branch', '--set-upstream-to', `${remote}/${branch}`, branch])
     }
     return
   }
 
-  if (upstream) await git(root, ['push'])
-  else await git(root, ['push', '--set-upstream', remote, 'HEAD'])
+  if (upstream) await git(root, ['push'], githubToken)
+  else await git(root, ['push', '--set-upstream', remote, 'HEAD'], githubToken)
 }
 
 export async function setGitRemote(path: string, name: string, url: string): Promise<void> {
