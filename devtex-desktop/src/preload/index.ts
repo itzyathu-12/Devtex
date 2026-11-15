@@ -6,6 +6,7 @@ import type {
   GitHubRepositoryResult
 } from '../shared/github'
 import type { AppPreferences, AppRuntimeInfo } from '../shared/settings'
+import type { GitRepositoryState, GitDiffResult } from '../shared/git'
 import type {
   GeminiChatRequest,
   GeminiChatResponse,
@@ -22,6 +23,13 @@ import type {
 
 // Custom APIs for renderer
 const api = {
+  getGitStatus: (path: string): Promise<GitRepositoryState> => ipcRenderer.invoke('git:status', path),
+  getGitDiff: (request: { path: string; filePath: string; staged?: boolean }): Promise<GitDiffResult> => ipcRenderer.invoke('git:diff', request),
+  stageGitFiles: (request: { path: string; files: string[] }): Promise<void> => ipcRenderer.invoke('git:stage', request),
+  unstageGitFiles: (request: { path: string; files: string[] }): Promise<void> => ipcRenderer.invoke('git:unstage', request),
+  commitGitChanges: (request: { path: string; message: string }): Promise<void> => ipcRenderer.invoke('git:commit', request),
+  switchGitBranch: (request: { path: string; branch: string; create?: boolean }): Promise<void> => ipcRenderer.invoke('git:branch', request),
+  syncGitRepository: (request: { path: string; action: 'fetch' | 'pull' | 'push' }): Promise<void> => ipcRenderer.invoke('git:sync', request),
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke('auth:open-external', url),
   onAuthCallback: (callback: (url: string) => void): (() => void) => {
     const listener = (_event: IpcRendererEvent, url: string): void => callback(url)
