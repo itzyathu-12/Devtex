@@ -32,6 +32,8 @@ const api = {
   commitGitChanges: (request: { path: string; message: string }): Promise<void> => ipcRenderer.invoke('git:commit', request),
   switchGitBranch: (request: { path: string; branch: string; create?: boolean }): Promise<void> => ipcRenderer.invoke('git:branch', request),
   syncGitRepository: (request: { path: string; action: 'fetch' | 'pull' | 'push' }): Promise<void> => ipcRenderer.invoke('git:sync', request),
+  setGitRemote: (request: { path: string; name: string; url: string }): Promise<void> => ipcRenderer.invoke('git:set-remote', request),
+  initializeGitRepository: (request: { path: string; branch?: string }): Promise<void> => ipcRenderer.invoke('git:init', request),
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke('auth:open-external', url),
   onAuthCallback: (callback: (url: string) => void): (() => void) => {
     const listener = (_event: IpcRendererEvent, url: string): void => callback(url)
