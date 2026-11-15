@@ -62,7 +62,7 @@ function parseRetryMessage(response: Response, body: unknown): string {
     return `GitHub API rate limit reached.${retryAt}`
   }
   if (response.status === 403 || response.status === 404) {
-    return 'GitHub denied repository access. Check that the GitHub OAuth App is authorized with repo access and allowed by your organization.'
+    return 'GitHub denied repository access. For a classic Personal Access Token, grant the repo scope. For organization repositories, confirm organization approval or SSO authorization. For OAuth, reconnect and approve repository access.'
   }
   return message || `GitHub API request failed with status ${response.status}.`
 }
@@ -164,7 +164,7 @@ export class GitHubRepositoryService {
   async connectWithToken(value: unknown): Promise<GitHubConnectionStatus> {
     if (typeof value !== 'string') throw new Error('Enter a GitHub Personal Access Token.')
     const token = value.trim()
-    if (token.length < 20 || token.length > 300 || /\\s/.test(token)) {
+    if (token.length < 20 || token.length > 300 || /\s/.test(token)) {
       throw new Error('That token does not look valid. Use a GitHub Personal Access Token, not your GitHub account password.')
     }
     await this.ensureSecureStorage()
