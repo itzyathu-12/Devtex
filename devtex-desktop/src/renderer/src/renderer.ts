@@ -36,7 +36,7 @@ const settingsDescriptions: Record<SettingsSection, string> = {
   diagnostics: 'Review safe runtime and integration diagnostics.',
   about: 'Application version and runtime details.'
 }
-type WorkspacePage = StartupPage | 'Projects' | 'Source Control' | 'Testing Engine' | 'Reports' | 'AI Chat' | 'Profile'
+type WorkspacePage = StartupPage | 'Projects' | 'Source Control' | 'Repo Organizer' | 'Testing Engine' | 'Reports' | 'AI Chat' | 'Profile'
 let currentAccountEmail: string | null = null
 let currentGitHubStatus: GitHubConnectionStatus = { connected: false, connecting: false }
 let currentGitHubProfile: GitHubProfile | null = null
@@ -115,6 +115,7 @@ function init(): void {
     setupNavigation()
     setupProjects()
     setupGitWorkspace()
+    setupRepoOrganizer()
     setupTestingEngine()
     setupWorkspacePages()
     setupGitHubRepositories()
@@ -176,6 +177,7 @@ function setupNavigation(): void {
     Dashboard: 'Build, test, and improve your software from one workspace.',
     Projects: 'Browse, search, and manage your local development projects.',
     'Source Control': 'Review local Git changes, commits, branches, and remote sync.',
+    'Repo Organizer': 'Use AI to audit and plan improvements to your repository structure.',
     'AI Chat': 'Chat, explore local projects, and review code with AI.',
     'Testing Engine': 'Run DEVTEX static defect analysis against a selected project.',
     Reports: 'Review scan history and findings captured during this session.',
@@ -208,6 +210,7 @@ function showPage(page: WorkspacePage, description = ''): void {
   const dashboard = document.getElementById('dashboard-view')
   const projectsView = document.getElementById('projects-view')
   const gitView = document.getElementById('git-view')
+  const organizerView = document.getElementById('repo-organizer-view')
   const testingView = document.getElementById('testing-view')
   const reportsView = document.getElementById('reports-view')
   const settings = document.getElementById('settings-view')
@@ -225,7 +228,9 @@ function showPage(page: WorkspacePage, description = ''): void {
   if (dashboard) dashboard.hidden = page !== 'Dashboard'
   if (projectsView) projectsView.hidden = page !== 'Projects'
   if (gitView) gitView.hidden = page !== 'Source Control'
+  if (organizerView) organizerView.hidden = page !== 'Repo Organizer'
   if (page === 'Source Control') void refreshGitWorkspace()
+  if (page === 'Repo Organizer') void refreshOrganizerProviderStatus()
   if (testingView) testingView.hidden = page !== 'Testing Engine'
   if (reportsView) reportsView.hidden = page !== 'Reports'
   if (settings) settings.hidden = page !== 'Settings'
@@ -252,6 +257,131 @@ function setGitMessage(message: string, error = false): void {
   if (!element) return
   element.textContent = message
   element.dataset.kind = error ? 'error' : 'info'
+}
+
+
+const organizerTasks: Record<string, string> = {
+  audit: 'Perform a full repository structure audit. Explain the current architecture, identify misplaced files and confusing folder boundaries, then propose a practical target tree. For every proposed move, explain why it belongs there. Preserve the existing language, framework and build setup.',
+  cleanup: 'Audit this repository for clutter: likely obsolete files, duplicate assets, generated output committed by mistake, temporary files, oversized or misplaced files, and unclear naming. Distinguish confirmed observations from possibilities; never assume a file is safe to delete.',
+  docs: 'Review the repository documentation. Identify missing, outdated, duplicated or misplaced documentation and propose a clear documentation structure. Do not invent project capabilities.',
+  architecture: 'Review the repository architecture and separation of concerns. Identify tightly coupled areas, misplaced responsibilities, confusing module boundaries and opportunities to simplify without overengineering.'
+}
+
+function setupRepoOrganizer(): void {
+  const selector = document.getElementById('organizer-project') as HTMLSelectElement | null
+  const prompt = document.getElementById('organizer-prompt') as HTMLTextAreaElement | null
+  const run = document.getElementById('organizer-run') as HTMLButtonElement | null
+  const status = document.getElementById('organizer-status')
+  const result = document.getElementById('organizer-result')
+  if (!selector || !prompt || !run || !status || !result) return
+
+  void window.api.getProjects().then((projects) => {
+    const selected = selector.value || activeAIProjectPath || ''
+    selector.replaceChildren(new Option('Choose a registered project…', ''))
+    projects.forEach((project) => selector.add(new Option(project.name, project.path)))
+    if (selected && projects.some((project) => project.path === selected)) selector.value = selected
+    else if (projects.length === 1) selector.value = projects[0].path
+  }).catch(() => {
+    status.textContent = 'Could not load registered projects.'
+  })
+
+  selector.addEventListener('change', () => {
+    activeAIProjectPath = selector.value || null
+    if (selector.value) status.textContent = 'Repository selected. Choose an audit or write your own instruction.'
+  })
+
+  document.querySelectorAll<HTMLButtonElement>('[data-organizer-task]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const task = button.dataset.organizerTask
+      if (!task || !organizerTasks[task]) return
+      prompt.value = organizerTasks[task]
+      document.querySelectorAll('[data-organizer-task]').forEach((item) => item.classList.remove('selected'))
+      button.classList.add('selected')
+      prompt.focus()
+    })
+  })
+
+  run.addEventListener('click', async () => {
+    const projectPath = selector.value
+    const instruction = prompt.value.trim()
+    if (!projectPath) {
+      status.textContent = 'Choose a registered repository first.'
+      return
+    }
+    if (!instruction) {
+      status.textContent = 'Choose an audit or enter an instruction.'
+      prompt.focus()
+      return
+    }
+    if (!currentAIStatus.configured) {
+      status.textContent = 'Configure an AI provider and API key in Preferences → API Configuration first.'
+      return
+    }
+    run.disabled = true
+    run.textContent = 'Analysing…'
+    status.textContent = `${currentAIStatus.providerLabel} is inspecting the repository…`
+    result.replaceChildren()
+    const loading = document.createElement('div')
+    loading.className = 'organizer-result-empty'
+    loading.textContent = 'Reading project context and preparing an organization plan…'
+    result.append(loading)
+    try {
+      const response = await window.api.sendAIChat({
+        messages: [{
+          role: 'user',
+          text: `You are DEVTEX Repo Organizer. Analyse the selected repository and help organize it safely. ${instruction}
+
+Return a useful, evidence-based report with these sections:
+1. Current structure — summarize what is actually present.
+2. Findings — identify concrete problems and cite relative paths when available.
+3. Proposed structure — show a compact target directory tree.
+4. Change plan — list suggested moves, renames or cleanup actions one by one, with reasons.
+5. Safety notes — call out anything that should not be moved or deleted without checking references.
+
+Do not claim to have changed files. Do not recommend deleting files unless clearly safe; label uncertain items for manual review. Prefer small, reversible changes over a large rewrite. If the available project context is insufficient, say what needs inspecting next.`
+        }],
+        mode: 'code-review',
+        projectPath
+      })
+      result.replaceChildren()
+      const report = document.createElement('pre')
+      report.className = 'organizer-report'
+      if (response.success) {
+        report.textContent = response.text
+        status.textContent = 'Analysis complete. Review the plan before making changes.'
+        addActivity('Repository analysed', selector.selectedOptions[0]?.textContent || 'Repo Organizer')
+      } else {
+        report.textContent = response.message
+        status.textContent = `${currentAIStatus.providerLabel} could not analyse this repository.`
+      }
+      result.append(report)
+    } catch (error) {
+      result.replaceChildren()
+      const report = document.createElement('p')
+      report.className = 'organizer-error'
+      report.textContent = error instanceof Error ? error.message : 'Repository analysis failed.'
+      result.append(report)
+      status.textContent = 'Analysis failed.'
+    } finally {
+      run.disabled = false
+      run.textContent = 'Analyse repository'
+    }
+  })
+}
+
+async function refreshOrganizerProviderStatus(): Promise<void> {
+  const label = document.getElementById('organizer-provider')
+  if (!label) return
+  try {
+    currentAIStatus = await window.api.getAIStatus()
+    label.textContent = currentAIStatus.configured
+      ? `${currentAIStatus.providerLabel} · ${currentAIStatus.model}`
+      : 'AI provider not configured'
+    label.setAttribute('data-ready', String(currentAIStatus.configured))
+  } catch {
+    label.textContent = 'AI provider status unavailable'
+    label.setAttribute('data-ready', 'false')
+  }
 }
 
 function setupGitWorkspace(): void {
