@@ -56,6 +56,7 @@
             Sign in
           </button>
 
+          <button type="button" class="button button-secondary auth-button" id="github-token-login">Use GitHub token</button>
           <button type="button" class="button button-primary auth-button" id="connect-github">
             <span>⌘</span> Connect GitHub
           </button>
@@ -158,7 +159,7 @@
         <section class="workspace-page git-workspace" id="git-view" hidden>
           <header class="workspace-page-heading git-page-heading">
             <div><div class="eyebrow">VERSION CONTROL / LOCAL GIT</div><h1>Source Control</h1><p class="subtitle">Review changes, shape commits, and sync your local repository.</p></div>
-            <div class="git-toolbar-actions"><button type="button" class="button button-secondary" id="git-fetch">Fetch</button><button type="button" class="button button-secondary" id="git-pull">Pull</button><button type="button" class="button button-primary" id="git-push">Push</button></div>
+            <div class="git-toolbar-actions"><button type="button" class="button button-secondary" id="git-init">Initialize Git</button><button type="button" class="button button-secondary" id="git-add-remote">Connect remote</button><button type="button" class="button button-secondary" id="git-create-remote">Create GitHub repo</button><button type="button" class="button button-secondary" id="git-fetch">Fetch</button><button type="button" class="button button-secondary" id="git-pull">Pull</button><button type="button" class="button button-primary" id="git-push">Push</button></div>
           </header>
           <div class="git-repository-bar">
             <label for="git-project-select">REPOSITORY</label><select id="git-project-select"><option value="">Choose a registered project…</option></select>
@@ -350,6 +351,20 @@
   </div>
 
   <script type="module" src="./src/renderer.ts"></script>
+
+  <dialog id="github-token-dialog" class="auth-modal" aria-labelledby="github-token-title">
+    <form method="dialog" id="github-token-form" class="auth-modal-content">
+      <button type="button" class="auth-close" id="github-token-close" aria-label="Close">×</button>
+      <div class="eyebrow">GITHUB AUTHENTICATION</div>
+      <h2 id="github-token-title">Connect with a token</h2>
+      <p>Use a GitHub Personal Access Token (PAT). Your GitHub account password will not work for API access. The token is encrypted using your device's secure storage.</p>
+      <label for="github-token-input">PERSONAL ACCESS TOKEN</label>
+      <input id="github-token-input" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…" required />
+      <p class="auth-helper">For repository access, grant repository permissions (contents and metadata). Classic tokens generally need the repo scope.</p>
+      <div class="auth-actions"><button type="button" class="button button-secondary" id="github-token-cancel">Cancel</button><button type="submit" class="button button-primary" id="github-token-submit">Connect securely</button></div>
+      <p id="github-token-message" role="status"></p>
+    </form>
+  </dialog>
 </body>
 
 </html>
