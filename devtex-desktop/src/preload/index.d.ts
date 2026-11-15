@@ -38,6 +38,7 @@ declare global {
     connectGitHubRepositories(): Promise<GitHubConnectionStatus>
     connectGitHubWithToken(token: string): Promise<GitHubConnectionStatus>
     createGitHubRepository(request: { name: string; description?: string; isPrivate: boolean }): Promise<GitHubRepository>
+    cloneGitHubRepository(url: string): Promise<WorkspaceProject | null>
     getGitHubRepositories(): Promise<GitHubRepositoryResult>
     getGitHubProfile(): Promise<GitHubProfile | null>
     getRuntimeInfo(): Promise<AppRuntimeInfo>
