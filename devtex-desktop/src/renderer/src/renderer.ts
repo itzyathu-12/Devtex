@@ -354,6 +354,9 @@ async function refreshGitWorkspace(): Promise<void> {
   if (refresh) refresh.disabled = true
   setGitMessage('Reading local Git status…')
   try {
+    if (!window.api || typeof window.api.getGitStatus !== 'function') {
+      throw new Error('DEVTEX preload is outdated. Close every DEVTEX window, pull the latest main branch, then restart with npm run dev.')
+    }
     activeGitState = await window.api.getGitStatus(selectedPath)
     renderGitState(activeGitState)
     setGitMessage(`${activeGitState.root} · ${activeGitState.changes.length} changed file(s)`)
