@@ -11,6 +11,7 @@ import type {
   WorkspaceProject
 } from '../../shared/settings'
 import { withLoadingState } from '../../shared/async-state'
+import type { GitRepositoryState, GitFileChange } from '../../shared/git'
 
 let activeAIProjectPath: string | null = null
 const activeChatMessages: GeminiChatMessage[] = []
@@ -35,7 +36,7 @@ const settingsDescriptions: Record<SettingsSection, string> = {
   diagnostics: 'Review safe runtime and integration diagnostics.',
   about: 'Application version and runtime details.'
 }
-type WorkspacePage = StartupPage | 'Projects' | 'Testing Engine' | 'Reports' | 'AI Chat' | 'Profile'
+type WorkspacePage = StartupPage | 'Projects' | 'Source Control' | 'Testing Engine' | 'Reports' | 'AI Chat' | 'Profile'
 let currentAccountEmail: string | null = null
 let currentGitHubStatus: GitHubConnectionStatus = { connected: false, connecting: false }
 let currentGitHubProfile: GitHubProfile | null = null
@@ -113,6 +114,7 @@ function init(): void {
     showVersions()
     setupNavigation()
     setupProjects()
+    setupGitWorkspace()
     setupTestingEngine()
     setupWorkspacePages()
     setupGitHubRepositories()
@@ -173,6 +175,7 @@ function setupNavigation(): void {
   const descriptions: Record<string, string> = {
     Dashboard: 'Build, test, and improve your software from one workspace.',
     Projects: 'Browse, search, and manage your local development projects.',
+    'Source Control': 'Review local Git changes, commits, branches, and remote sync.'
     'AI Chat': 'Chat, explore local projects, and review code with AI.',
     'Testing Engine': 'Run DEVTEX static defect analysis against a selected project.',
     Reports: 'Review scan history and findings captured during this session.',
@@ -204,6 +207,7 @@ function showPage(page: WorkspacePage, description = ''): void {
   const subtitle = document.getElementById('page-subtitle')
   const dashboard = document.getElementById('dashboard-view')
   const projectsView = document.getElementById('projects-view')
+  const gitView = document.getElementById('git-view')
   const testingView = document.getElementById('testing-view')
   const reportsView = document.getElementById('reports-view')
   const settings = document.getElementById('settings-view')
@@ -220,6 +224,8 @@ function showPage(page: WorkspacePage, description = ''): void {
 
   if (dashboard) dashboard.hidden = page !== 'Dashboard'
   if (projectsView) projectsView.hidden = page !== 'Projects'
+  if (gitView) gitView.hidden = page !== 'Source Control'
+  if (page === 'Source Control') void refreshGitWorkspace()
   if (testingView) testingView.hidden = page !== 'Testing Engine'
   if (reportsView) reportsView.hidden = page !== 'Reports'
   if (settings) settings.hidden = page !== 'Settings'
@@ -233,6 +239,219 @@ function showPage(page: WorkspacePage, description = ''): void {
     renderAIChatPage()
   } else if (page === 'Profile') {
     renderProfilePage()
+  }
+}
+
+
+let activeGitPath: string | null = null
+let activeGitState: GitRepositoryState | null = null
+let activeGitDiffFile: GitFileChange | null = null
+
+function setGitMessage(message: string, error = false): void {
+  const element = document.getElementById('git-status-message')
+  if (!element) return
+  element.textContent = message
+  element.dataset.kind = error ? 'error' : 'info'
+}
+
+function setupGitWorkspace(): void {
+  const projectSelect = document.getElementById('git-project-select') as HTMLSelectElement | null
+  const refresh = document.getElementById('git-refresh') as HTMLButtonElement | null
+  const branchSelect = document.getElementById('git-branch-select') as HTMLSelectElement | null
+  const selectedPaths = (staged: boolean): string[] =>
+    (activeGitState?.changes ?? []).filter((file) => file.staged === staged).map((file) => file.path)
+
+  function populateProjects(): void {
+    if (!projectSelect) return
+    const current = activeGitPath
+    projectSelect.replaceChildren(new Option('Choose a registered project…', ''))
+    workspaceProjects.forEach((project) => projectSelect.add(new Option(project.name, project.path)))
+    if (current && workspaceProjects.some((project) => project.path === current)) projectSelect.value = current
+  }
+
+  projectSelect?.addEventListener('change', () => {
+    activeGitPath = projectSelect.value || null
+    void refreshGitWorkspace()
+  })
+  refresh?.addEventListener('click', () => void refreshGitWorkspace())
+  document.getElementById('git-stage-all')?.addEventListener('click', async () => {
+    if (!activeGitPath) return
+    await runGitAction(() => window.api.stageGitFiles({ path: activeGitPath!, files: selectedPaths(false) }))
+  })
+  document.getElementById('git-unstage-all')?.addEventListener('click', async () => {
+    if (!activeGitPath) return
+    await runGitAction(() => window.api.unstageGitFiles({ path: activeGitPath!, files: selectedPaths(true) }))
+  })
+  document.getElementById('git-commit')?.addEventListener('click', async () => {
+    const message = (document.getElementById('git-commit-message') as HTMLTextAreaElement | null)?.value ?? ''
+    if (!activeGitPath) return
+    await runGitAction(async () => {
+      await window.api.commitGitChanges({ path: activeGitPath!, message })
+      const input = document.getElementById('git-commit-message') as HTMLTextAreaElement | null
+      if (input) input.value = ''
+      addActivity('Git commit created', message.trim())
+    })
+  })
+  branchSelect?.addEventListener('change', async () => {
+    if (!activeGitPath || !branchSelect.value || branchSelect.value === activeGitState?.branch) return
+    const target = branchSelect.value
+    await runGitAction(() => window.api.switchGitBranch({ path: activeGitPath!, branch: target }))
+  })
+  document.getElementById('git-new-branch')?.addEventListener('click', async () => {
+    if (!activeGitPath) return
+    const name = window.prompt('New branch name')
+    if (!name?.trim()) return
+    await runGitAction(() => window.api.switchGitBranch({ path: activeGitPath!, branch: name.trim(), create: true }))
+  })
+  for (const action of ['fetch', 'pull', 'push'] as const) {
+    document.getElementById(`git-${action}`)?.addEventListener('click', async () => {
+      if (!activeGitPath) return
+      await runGitAction(() => window.api.syncGitRepository({ path: activeGitPath!, action }))
+    })
+  }
+  document.getElementById('git-staged-list')?.addEventListener('click', (event) => {
+    const target = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-git-file]')
+    if (!target || !activeGitPath || !activeGitState) return
+    const file = activeGitState.changes.find((item) => item.path === target.dataset.gitFile)
+    if (file) void showGitDiff(file)
+  })
+  document.getElementById('git-unstaged-list')?.addEventListener('click', (event) => {
+    const target = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-git-file]')
+    if (!target || !activeGitPath || !activeGitState) return
+    const file = activeGitState.changes.find((item) => item.path === target.dataset.gitFile)
+    if (file) void showGitDiff(file)
+  })
+  populateProjects()
+}
+
+async function runGitAction(action: () => Promise<unknown>): Promise<void> {
+  try {
+    setGitMessage('Working…')
+    await action()
+    await refreshGitWorkspace()
+  } catch (error) {
+    setGitMessage(error instanceof Error ? error.message : 'Git operation failed.', true)
+  }
+}
+
+async function refreshGitWorkspace(): Promise<void> {
+  const projectSelect = document.getElementById('git-project-select') as HTMLSelectElement | null
+  const selectedPath = activeGitPath || projectSelect?.value || ''
+  const refresh = document.getElementById('git-refresh') as HTMLButtonElement | null
+  if (!selectedPath) {
+    activeGitState = null
+    setGitMessage('Select a registered project folder that contains a Git repository.')
+    renderGitState(null)
+    return
+  }
+  activeGitPath = selectedPath
+  if (projectSelect) projectSelect.value = selectedPath
+  if (refresh) refresh.disabled = true
+  setGitMessage('Reading local Git status…')
+  try {
+    activeGitState = await window.api.getGitStatus(selectedPath)
+    renderGitState(activeGitState)
+    setGitMessage(`${activeGitState.root} · ${activeGitState.changes.length} changed file(s)`)
+  } catch (error) {
+    activeGitState = null
+    renderGitState(null)
+    setGitMessage(error instanceof Error ? error.message : 'Could not read this Git repository.', true)
+  } finally {
+    if (refresh) refresh.disabled = !activeGitPath
+  }
+}
+
+function renderGitState(state: GitRepositoryState | null): void {
+  const staged = document.getElementById('git-staged-list')
+  const unstaged = document.getElementById('git-unstaged-list')
+  const count = document.getElementById('git-change-count')
+  const branch = document.getElementById('git-branch-select') as HTMLSelectElement | null
+  const commit = document.getElementById('git-commit') as HTMLButtonElement | null
+  const stageAll = document.getElementById('git-stage-all') as HTMLButtonElement | null
+  const unstageAll = document.getElementById('git-unstage-all') as HTMLButtonElement | null
+  const newBranch = document.getElementById('git-new-branch') as HTMLButtonElement | null
+  if (!staged || !unstaged) return
+  staged.replaceChildren()
+  unstaged.replaceChildren()
+  const changes = state?.changes ?? []
+  if (count) count.textContent = String(changes.length)
+  const makeFileRow = (file: GitFileChange): HTMLElement => {
+    const row = document.createElement('div')
+    row.className = 'git-file-row'
+    const open = document.createElement('button')
+    open.type = 'button'
+    open.className = 'git-file-name'
+    open.dataset.gitFile = file.path
+    open.textContent = file.path
+    const status = document.createElement('span')
+    status.className = 'git-file-status'
+    status.textContent = file.status || 'M'
+    row.append(open, status)
+    return row
+  }
+  const stagedFiles = changes.filter((file) => file.staged)
+  const unstagedFiles = changes.filter((file) => !file.staged)
+  stagedFiles.forEach((file) => staged.append(makeFileRow(file)))
+  unstagedFiles.forEach((file) => unstaged.append(makeFileRow(file)))
+  if (!stagedFiles.length) staged.textContent = 'No staged changes'
+  if (!unstagedFiles.length) unstaged.textContent = 'No unstaged changes'
+  if (branch) {
+    branch.replaceChildren()
+    ;(state?.branches ?? []).forEach((name) => branch.add(new Option(name, name)))
+    if (state?.branch) branch.value = state.branch
+    branch.disabled = !state || state.detached
+  }
+  if (commit) commit.disabled = !state || !stagedFiles.length
+  if (stageAll) stageAll.disabled = !state || !unstagedFiles.length
+  if (unstageAll) unstageAll.disabled = !state || !stagedFiles.length
+  if (newBranch) newBranch.disabled = !state || state.detached
+  for (const action of ['fetch', 'pull', 'push']) {
+    const button = document.getElementById(`git-${action}`) as HTMLButtonElement | null
+    if (button) button.disabled = !state || state.remotes.length === 0
+  }
+  const remoteSummary = document.getElementById('git-remote-summary')
+  if (remoteSummary) {
+    const remote = state?.remotes[0]
+    remoteSummary.textContent = remote ? `${remote.name} · ${state?.ahead ?? 0} ahead / ${state?.behind ?? 0} behind` : 'No remote configured'
+  }
+  const history = document.getElementById('git-commit-history')
+  if (history) {
+    history.replaceChildren()
+    if (!state?.commits.length) history.textContent = 'No commits yet.'
+    state?.commits.forEach((item) => {
+      const row = document.createElement('div')
+      row.className = 'git-history-row'
+      const hash = document.createElement('code')
+      hash.textContent = item.shortHash
+      const subject = document.createElement('strong')
+      subject.textContent = item.subject
+      const author = document.createElement('span')
+      author.textContent = `${item.author} · ${new Date(item.date).toLocaleString()}`
+      row.append(hash, subject, author)
+      history.append(row)
+    })
+  }
+  if (!state) {
+    const diff = document.getElementById('git-diff-content')
+    if (diff) diff.textContent = 'Select a valid local Git repository to inspect its changes.'
+  }
+}
+
+async function showGitDiff(file: GitFileChange): Promise<void> {
+  if (!activeGitPath) return
+  const output = document.getElementById('git-diff-content')
+  const title = document.getElementById('git-diff-title')
+  const meta = document.getElementById('git-diff-meta')
+  if (title) title.textContent = file.path
+  if (meta) meta.textContent = file.staged ? 'STAGED' : 'UNSTAGED'
+  if (output) output.textContent = 'Loading diff…'
+  try {
+    const result = await window.api.getGitDiff({ path: activeGitPath, filePath: file.path, staged: file.staged })
+    if (output) output.textContent = result.diff || (file.status === 'Untracked'
+      ? 'This file is untracked. Stage it to include it in the next commit.'
+      : 'No textual diff is available for this file.')
+  } catch (error) {
+    if (output) output.textContent = error instanceof Error ? error.message : 'Could not load diff.'
   }
 }
 
