@@ -146,6 +146,18 @@ ipcMain.handle('github:connect', async (event) => {
   return githubRepositories.connect()
 })
 
+ipcMain.handle('github:connect-token', async (event, token: unknown) => {
+  assertTrustedSender(event)
+  return githubRepositories.connectWithToken(token)
+})
+
+ipcMain.handle('github:create-repository', async (event, request: unknown) => {
+  assertTrustedSender(event)
+  if (!request || typeof request !== 'object') throw new Error('Invalid repository creation request.')
+  const value = request as { name?: unknown; description?: unknown; isPrivate?: unknown }
+  return githubRepositories.createRepository(value.name, value.description, value.isPrivate)
+})
+
 ipcMain.handle('github:repositories', async (event) => {
   assertTrustedSender(event)
   return githubRepositories.getRepositories()
