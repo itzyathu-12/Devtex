@@ -48,6 +48,8 @@ const api = {
     ipcRenderer.invoke('github:connect-token', token),
   createGitHubRepository: (request: { name: string; description?: string; isPrivate: boolean }): Promise<GitHubRepository> =>
     ipcRenderer.invoke('github:create-repository', request),
+  cloneGitHubRepository: (url: string): Promise<WorkspaceProject | null> =>
+    ipcRenderer.invoke('github:clone-repository', url),
   getGitHubRepositories: (): Promise<GitHubRepositoryResult> =>
     ipcRenderer.invoke('github:repositories'),
   getGitHubProfile: (): Promise<GitHubProfile | null> => ipcRenderer.invoke('github:profile'),
