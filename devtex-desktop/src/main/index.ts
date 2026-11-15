@@ -61,6 +61,14 @@ function assertTrustedSender(event: IpcMainInvokeEvent): void {
   }
 }
 
+async function getRegisteredGitPath(value: unknown): Promise<string> {
+  if (typeof value !== 'string' || !value.trim()) throw new Error('Choose a registered project.')
+  const projects = await getProjects()
+  const project = projects.find((item) => item.path === value)
+  if (!project) throw new Error('Git actions are limited to folders registered in your DEVTEX workspace.')
+  return project.path
+}
+
 function deliverAuthCallback(): void {
   if (!pendingAuthCallback || !mainWindow || !rendererReady) return
   mainWindow.webContents.send('auth:callback', pendingAuthCallback)
@@ -146,50 +154,49 @@ ipcMain.handle('github:open-repository', async (event, value: unknown) => {
 
 ipcMain.handle('git:status', async (event, path: unknown) => {
   assertTrustedSender(event)
-  if (typeof path !== 'string') throw new Error('Choose a local project first.')
-  return getGitStatus(path)
+  return getGitStatus(await getRegisteredGitPath(path))
 })
 ipcMain.handle('git:diff', async (event, request: unknown) => {
   assertTrustedSender(event)
   if (!request || typeof request !== 'object') throw new Error('Invalid diff request.')
   const value = request as { path?: unknown; filePath?: unknown; staged?: unknown }
   if (typeof value.path !== 'string' || typeof value.filePath !== 'string') throw new Error('Invalid diff request.')
-  return getGitDiff(value.path, value.filePath, value.staged === true)
+  return getGitDiff(await getRegisteredGitPath(value.path), value.filePath, value.staged === true)
 })
 ipcMain.handle('git:stage', async (event, request: unknown) => {
   assertTrustedSender(event)
   if (!request || typeof request !== 'object') throw new Error('Invalid staging request.')
   const value = request as { path?: unknown; files?: unknown }
   if (typeof value.path !== 'string' || !Array.isArray(value.files)) throw new Error('Invalid staging request.')
-  await stageFiles(value.path, value.files as string[])
+  await stageFiles(await getRegisteredGitPath(value.path), value.files as string[])
 })
 ipcMain.handle('git:unstage', async (event, request: unknown) => {
   assertTrustedSender(event)
   if (!request || typeof request !== 'object') throw new Error('Invalid staging request.')
   const value = request as { path?: unknown; files?: unknown }
   if (typeof value.path !== 'string' || !Array.isArray(value.files)) throw new Error('Invalid staging request.')
-  await unstageFiles(value.path, value.files as string[])
+  await unstageFiles(await getRegisteredGitPath(value.path), value.files as string[])
 })
 ipcMain.handle('git:commit', async (event, request: unknown) => {
   assertTrustedSender(event)
   if (!request || typeof request !== 'object') throw new Error('Invalid commit request.')
   const value = request as { path?: unknown; message?: unknown }
   if (typeof value.path !== 'string' || typeof value.message !== 'string') throw new Error('Invalid commit request.')
-  await commitChanges(value.path, value.message)
+  await commitChanges(await getRegisteredGitPath(value.path), value.message)
 })
 ipcMain.handle('git:branch', async (event, request: unknown) => {
   assertTrustedSender(event)
   if (!request || typeof request !== 'object') throw new Error('Invalid branch request.')
   const value = request as { path?: unknown; branch?: unknown; create?: unknown }
   if (typeof value.path !== 'string' || typeof value.branch !== 'string') throw new Error('Invalid branch request.')
-  await switchBranch(value.path, value.branch, value.create === true)
+  await switchBranch(await getRegisteredGitPath(value.path), value.branch, value.create === true)
 })
 ipcMain.handle('git:sync', async (event, request: unknown) => {
   assertTrustedSender(event)
   if (!request || typeof request !== 'object') throw new Error('Invalid sync request.')
   const value = request as { path?: unknown; action?: unknown }
   if (typeof value.path !== 'string' || !['fetch', 'pull', 'push'].includes(String(value.action))) throw new Error('Invalid sync request.')
-  await syncRepository(value.path, value.action as 'fetch' | 'pull' | 'push')
+  await syncRepository(await getRegisteredGitPath(value.path), value.action as 'fetch' | 'pull' | 'push')
 })
 
 ipcMain.handle('settings:runtime', (event) => {
