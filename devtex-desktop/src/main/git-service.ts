@@ -1,19 +1,72 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { realpath } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { delimiter, dirname, join, resolve } from 'node:path'
 import type { GitCommit, GitFileChange, GitRepositoryState, GitDiffResult } from '../shared/git'
 
 const execFileAsync = promisify(execFile)
 const MAX_BUFFER = 4 * 1024 * 1024
 
+let cachedGitExecutable: string | null = null
+
+function findGitExecutable(): string {
+  if (cachedGitExecutable && existsSync(cachedGitExecutable)) return cachedGitExecutable
+
+  const candidates: string[] = []
+  const addGitLayouts = (base: string | undefined): void => {
+    if (!base) return
+    const root = resolve(base.replace(/^"|"$/g, ''))
+    candidates.push(
+      join(root, 'cmd', 'git.exe'),
+      join(root, 'bin', 'git.exe'),
+      join(root, 'mingw64', 'bin', 'git.exe'),
+      join(root, 'usr', 'bin', 'git.exe'),
+      join(root, 'git.exe')
+    )
+  }
+
+  if (process.env.GIT_EXECUTABLE) candidates.push(resolve(process.env.GIT_EXECUTABLE))
+  for (const entry of (process.env.PATH || '').split(delimiter)) {
+    const clean = entry.trim().replace(/^"|"$/g, '')
+    if (clean) candidates.push(join(clean, 'git.exe'))
+  }
+
+  addGitLayouts(process.env.ProgramFiles ? join(process.env.ProgramFiles, 'Git') : undefined)
+  addGitLayouts(process.env['ProgramFiles(x86)'] ? join(process.env['ProgramFiles(x86)']!, 'Git') : undefined)
+  addGitLayouts(process.env.LOCALAPPDATA ? join(process.env.LOCALAPPDATA, 'Programs', 'Git') : undefined)
+
+  // Portable Git commonly sits in a parent folder of the checked-out project.
+  let ancestor = process.cwd()
+  for (let depth = 0; depth < 8; depth += 1) {
+    addGitLayouts(ancestor)
+    const parent = dirname(ancestor)
+    if (parent === ancestor) break
+    ancestor = parent
+  }
+
+  const found = candidates.find((candidate) => existsSync(candidate))
+  if (!found) {
+    throw new Error('Git for Windows was not found. Install Git for Windows, add its cmd folder to PATH, or set GIT_EXECUTABLE to the full path of git.exe. Portable Git is supported when its folder is an ancestor of the DEVTEX app.')
+  }
+  cachedGitExecutable = found
+  return found
+}
+
 async function git(cwd: string, args: string[]): Promise<string> {
-  const { stdout } = await execFileAsync('git', ['-C', cwd, ...args], {
-    windowsHide: true,
-    timeout: 30000,
-    maxBuffer: MAX_BUFFER,
-    encoding: 'utf8'
-  })
-  return stdout
+  const executable = findGitExecutable()
+  try {
+    const { stdout } = await execFileAsync(executable, ['-C', cwd, ...args], {
+      windowsHide: true,
+      timeout: 30000,
+      maxBuffer: MAX_BUFFER,
+      encoding: 'utf8'
+    })
+    return stdout
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error)
+    throw new Error(`Git command failed: ${detail}`)
+  }
 }
 
 async function repositoryRoot(path: string): Promise<string> {
