@@ -8,7 +8,7 @@ const is = { dev: process.env.NODE_ENV !== 'production' } as const;
 import icon from '../../resources/icon.png?asset'
 import { GitHubRepositoryService } from './github-repositories'
 import { getCurrentAIProvider } from './providers/provider-factory'
-import { getGitStatus, getGitDiff, stageFiles, unstageFiles, commitChanges, switchBranch, syncRepository } from './git-service'
+import { getGitStatus, getGitDiff, stageFiles, unstageFiles, commitChanges, switchBranch, syncRepository, setGitRemote, initializeRepository } from './git-service'
 
 import {
   getPreferences,
@@ -213,6 +213,21 @@ ipcMain.handle('git:sync', async (event, request: unknown) => {
   if (typeof value.path !== 'string' || !['fetch', 'pull', 'push'].includes(String(value.action))) throw new Error('Invalid sync request.')
   await syncRepository(await getRegisteredGitPath(value.path), value.action as 'fetch' | 'pull' | 'push')
 })
+ipcMain.handle('git:set-remote', async (event, request: unknown) => {
+  assertTrustedSender(event)
+  if (!request || typeof request !== 'object') throw new Error('Invalid remote request.')
+  const value = request as { path?: unknown; name?: unknown; url?: unknown }
+  if (typeof value.path !== 'string' || typeof value.name !== 'string' || typeof value.url !== 'string') throw new Error('Invalid remote request.')
+  await setGitRemote(await getRegisteredGitPath(value.path), value.name, value.url)
+})
+ipcMain.handle('git:init', async (event, request: unknown) => {
+  assertTrustedSender(event)
+  if (!request || typeof request !== 'object') throw new Error('Invalid repository initialization request.')
+  const value = request as { path?: unknown; branch?: unknown }
+  if (typeof value.path !== 'string') throw new Error('Invalid repository initialization request.')
+  await initializeRepository(await getRegisteredProjectPath(value.path, 'Git initialization'), typeof value.branch === 'string' ? value.branch : 'main')
+})
+
 
 ipcMain.handle('settings:runtime', (event) => {
   assertTrustedSender(event)
