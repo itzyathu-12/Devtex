@@ -1,6 +1,6 @@
 import type { BrowserWindow, OpenDialogOptions } from 'electron'
 import { copyFile, mkdir, readdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
-import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
+import { basename, dirname, extname, isAbsolute, join, relative, resolve } from 'node:path'
 import type {
   DetectedBug,
   ProjectBugScanResult,
@@ -364,9 +364,10 @@ export async function applyRepoOrganization(
       if (operation.type === 'move') {
         const source = safeResolveProjectFile(root, operation.from)
         const destination = safeResolveProjectFile(root, operation.to)
-        if (isSecretOrExcluded(basename(source)) || isSecretOrExcluded(basename(destination))) {
-          throw new Error('Moving sensitive, binary, or excluded files is not supported.')
+        if (isSecretOrExcluded(basename(source)) || isSecretOrExcluded(basename(destination)) || !['.md', '.txt'].includes(extname(source).toLowerCase()) || !['.md', '.txt'].includes(extname(destination).toLowerCase())) {
+          throw new Error('Repo Organizer can move documentation text files only; source code and configuration moves are blocked.')
         }
+        if (source === destination) throw new Error('Source and destination are identical.')
         const sourceInfo = await stat(source)
         if (!sourceInfo.isFile()) throw new Error('Only individual files can be moved.')
         try {
@@ -379,8 +380,8 @@ export async function applyRepoOrganization(
         await rename(source, destination)
         applied.push({ id: operation.id, path: operation.to })
       } else if (operation.type === 'write') {
-        if (typeof operation.content !== 'string' || operation.content.length > 200000) {
-          throw new Error('New or updated file content is invalid or exceeds 200 KB.')
+        if (typeof operation.content !== 'string' || operation.content.length > 30000 || !['.md', '.txt'].includes(extname(operation.path).toLowerCase())) {
+          throw new Error('Repo Organizer may write Markdown or text documentation only (max 30 KB).')
         }
         const target = safeResolveProjectFile(root, operation.path)
         if (isSecretOrExcluded(basename(target))) {
