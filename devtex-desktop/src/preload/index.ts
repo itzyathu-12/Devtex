@@ -43,6 +43,10 @@ const api = {
   },
   connectGitHubRepositories: (): Promise<GitHubConnectionStatus> =>
     ipcRenderer.invoke('github:connect'),
+  connectGitHubWithToken: (token: string): Promise<GitHubConnectionStatus> =>
+    ipcRenderer.invoke('github:connect-token', token),
+  createGitHubRepository: (request: { name: string; description?: string; isPrivate: boolean }): Promise<GitHubRepository> =>
+    ipcRenderer.invoke('github:create-repository', request),
   getGitHubRepositories: (): Promise<GitHubRepositoryResult> =>
     ipcRenderer.invoke('github:repositories'),
   getGitHubProfile: (): Promise<GitHubProfile | null> => ipcRenderer.invoke('github:profile'),
