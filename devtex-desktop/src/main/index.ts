@@ -24,6 +24,7 @@ import {
 import {
   chooseProjectFolder,
   inspectProject,
+  inspectRepositoryForOrganizer,
   readProjectFile,
   applyProjectFileEdit,
   applyRepoOrganization,
@@ -356,6 +357,14 @@ ipcMain.handle('project:apply-edit', async (event, req: unknown) => {
   }
   return applyProjectFileEdit(req as ProjectFileEditRequest);
 });
+
+ipcMain.handle('project:organizer-context', async (event, projectPath: unknown) => {
+  assertTrustedSender(event)
+  if (typeof projectPath !== 'string' || !projectPath.trim()) throw new Error('Invalid repository path.')
+  const projects = await getProjects()
+  if (!projects.some((project) => project.path === projectPath)) throw new Error('Organizer context is limited to registered DEVTEX projects.')
+  return inspectRepositoryForOrganizer(projectPath)
+})
 
 ipcMain.handle('project:apply-organization', async (event, req: unknown) => {
   assertTrustedSender(event)
