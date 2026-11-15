@@ -59,6 +59,8 @@ const api = {
     ipcRenderer.invoke('project:read-file', request),
   applyProjectFileEdit: (request: ProjectFileEditRequest): Promise<ProjectFileEditResult> =>
     ipcRenderer.invoke('project:apply-edit', request),
+  applyRepoOrganization: (request: RepoOrganizationApplyRequest): Promise<RepoOrganizationApplyResult> =>
+    ipcRenderer.invoke('project:apply-organization', request),
   scanProjectForBugs: (projectPath: string): Promise<ProjectBugScanResult> =>
     ipcRenderer.invoke('project:scan-bugs', projectPath),
   getIgnoredBugs: (): Promise<string[]> => ipcRenderer.invoke('bugs:get-ignored'),
