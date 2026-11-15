@@ -3532,3 +3532,54 @@ body { background:#0b100f !important; color:var(--dt-ink); }
 .organizer-approval-actions span { flex:1 1 260px; color:#b9c9bd; font-size:11px; line-height:1.5; }
 .organizer-approval-actions button { min-height:34px; padding:0 13px; border-radius:2px !important; cursor:pointer; }
 .organizer-approval-actions button:disabled { opacity:.5; cursor:wait; }
+
+
+/* GitHub token dialog — native modal, matching the desktop authentication surface */
+dialog.auth-modal {
+  width: min(92vw, 460px);
+  max-width: 460px;
+  max-height: min(86vh, 680px);
+  margin: auto;
+  padding: 0;
+  overflow: auto;
+  color: #f5f3ff;
+  background: #11131c;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
+}
+dialog.auth-modal::backdrop {
+  background: rgba(3, 4, 12, 0.78);
+  backdrop-filter: blur(10px);
+}
+.auth-modal-content {
+  display: grid;
+  gap: 12px;
+  padding: 30px;
+}
+.auth-modal-content h2 { margin: 0; color: #fff; font-size: 22px; }
+.auth-modal-content p { margin: 0; color: #a7a5bd; font-size: 12px; line-height: 1.65; }
+.auth-modal-content label { color: #a7a5bd; font-size: 10px; font-weight: 700; letter-spacing: .12em; }
+.auth-modal-content input {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 12px;
+  color: #f5f3ff;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 8px;
+  font: inherit;
+}
+.auth-modal-content input:focus-visible { outline: 2px solid #8bc9ad; outline-offset: 2px; }
+.auth-modal-content .auth-close {
+  justify-self: end;
+  width: 30px;
+  height: 30px;
+  color: #c7c4d5;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 8px;
+  font-size: 20px;
+  cursor: pointer;
+}
+.auth-modal-content .auth-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
