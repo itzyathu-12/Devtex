@@ -1,0 +1,46 @@
+name: DEVTEX Desktop - Windows verification
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "devtex-desktop/**"
+      - ".github/workflows/desktop-windows.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: devtex-desktop
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: devtex-desktop/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build Windows installer
+        run: npm run build:win
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: devtex-desktop-windows-installer
+          path: devtex-desktop/dist/*.exe
+          if-no-files-found: error
+          retention-days: 14
