@@ -103,6 +103,21 @@ export interface ProjectFileEditResult {
   appliedPath?: string
 }
 
+export type RepoOrganizationOperation =
+  | { id: string; type: 'move'; from: string; to: string; reason: string }
+  | { id: string; type: 'write'; path: string; content: string; reason: string }
+
+export interface RepoOrganizationApplyRequest {
+  projectPath: string
+  operations: RepoOrganizationOperation[]
+}
+
+export interface RepoOrganizationApplyResult {
+  success: boolean
+  applied: Array<{ id: string; path: string; backupPath?: string }>
+  failed: Array<{ id: string; error: string }>
+}
+
 export interface ProjectFileReadRequest {
   projectPath: string
   filePath: string
