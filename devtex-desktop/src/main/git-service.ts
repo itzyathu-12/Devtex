@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { realpath } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
-import { delimiter, dirname, join, resolve } from 'node:path'
+import { basename, delimiter, dirname, join, resolve } from 'node:path'
 import type { GitCommit, GitFileChange, GitRepositoryState, GitDiffResult } from '../shared/git'
 
 const execFileAsync = promisify(execFile)
@@ -231,6 +231,25 @@ export async function syncRepository(path: string, action: 'fetch' | 'pull' | 'p
 
   if (upstream) await git(root, ['push'], githubToken)
   else await git(root, ['push', '--set-upstream', remote, 'HEAD'], githubToken)
+}
+
+export async function cloneGitRepository(url: string, parentPath: string, githubToken?: string | null): Promise<string> {
+  if (typeof url !== 'string' || typeof parentPath !== 'string' || !parentPath.trim()) {
+    throw new Error('Choose a GitHub repository and a destination folder.')
+  }
+  let parsed: URL
+  try { parsed = new URL(url) } catch { throw new Error('Enter a valid GitHub repository URL.') }
+  if (parsed.protocol !== 'https:' || parsed.hostname !== 'github.com' ||
+      !/^\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\.git)?\/?$/.test(parsed.pathname)) {
+    throw new Error('Only HTTPS GitHub repository URLs can be cloned from this view.')
+  }
+  const repositoryName = basename(parsed.pathname.replace(/\.git\/?$/, '').replace(/\/$/, ''))
+  if (!/^[A-Za-z0-9_.-]{1,100}$/.test(repositoryName)) throw new Error('GitHub returned an invalid repository name.')
+  const parent = await realpath(parentPath)
+  const destination = join(parent, repositoryName)
+  if (existsSync(destination)) throw new Error(`A folder named "${repositoryName}" already exists in the selected destination.`)
+  await git(parent, ['clone', '--', url, destination], githubToken)
+  return destination
 }
 
 export async function setGitRemote(path: string, name: string, url: string): Promise<void> {
