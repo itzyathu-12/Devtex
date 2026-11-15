@@ -223,7 +223,9 @@ ipcMain.handle('git:sync', async (event, request: unknown) => {
   if (!request || typeof request !== 'object') throw new Error('Invalid sync request.')
   const value = request as { path?: unknown; action?: unknown }
   if (typeof value.path !== 'string' || !['fetch', 'pull', 'push'].includes(String(value.action))) throw new Error('Invalid sync request.')
-  await syncRepository(await getRegisteredGitPath(value.path), value.action as 'fetch' | 'pull' | 'push')
+  const projectPath = await getRegisteredGitPath(value.path)
+  const githubToken = await githubRepositories.getGitAccessToken()
+  await syncRepository(projectPath, value.action as 'fetch' | 'pull' | 'push', githubToken)
 })
 ipcMain.handle('git:set-remote', async (event, request: unknown) => {
   assertTrustedSender(event)
