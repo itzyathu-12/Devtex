@@ -8,6 +8,7 @@ const is = { dev: process.env.NODE_ENV !== 'production' } as const;
 import icon from '../../resources/icon.png?asset'
 import { GitHubRepositoryService } from './github-repositories'
 import { getCurrentAIProvider } from './providers/provider-factory'
+import { getGitStatus, getGitDiff, stageFiles, unstageFiles, commitChanges, switchBranch, syncRepository } from './git-service'
 
 import {
   getPreferences,
@@ -140,6 +141,55 @@ ipcMain.handle('github:disconnect', async (event) => {
 ipcMain.handle('github:open-repository', async (event, value: unknown) => {
   assertTrustedSender(event)
   await githubRepositories.openRepository(value)
+})
+
+
+ipcMain.handle('git:status', async (event, path: unknown) => {
+  assertTrustedSender(event)
+  if (typeof path !== 'string') throw new Error('Choose a local project first.')
+  return getGitStatus(path)
+})
+ipcMain.handle('git:diff', async (event, request: unknown) => {
+  assertTrustedSender(event)
+  if (!request || typeof request !== 'object') throw new Error('Invalid diff request.')
+  const value = request as { path?: unknown; filePath?: unknown; staged?: unknown }
+  if (typeof value.path !== 'string' || typeof value.filePath !== 'string') throw new Error('Invalid diff request.')
+  return getGitDiff(value.path, value.filePath, value.staged === true)
+})
+ipcMain.handle('git:stage', async (event, request: unknown) => {
+  assertTrustedSender(event)
+  if (!request || typeof request !== 'object') throw new Error('Invalid staging request.')
+  const value = request as { path?: unknown; files?: unknown }
+  if (typeof value.path !== 'string' || !Array.isArray(value.files)) throw new Error('Invalid staging request.')
+  await stageFiles(value.path, value.files as string[])
+})
+ipcMain.handle('git:unstage', async (event, request: unknown) => {
+  assertTrustedSender(event)
+  if (!request || typeof request !== 'object') throw new Error('Invalid staging request.')
+  const value = request as { path?: unknown; files?: unknown }
+  if (typeof value.path !== 'string' || !Array.isArray(value.files)) throw new Error('Invalid staging request.')
+  await unstageFiles(value.path, value.files as string[])
+})
+ipcMain.handle('git:commit', async (event, request: unknown) => {
+  assertTrustedSender(event)
+  if (!request || typeof request !== 'object') throw new Error('Invalid commit request.')
+  const value = request as { path?: unknown; message?: unknown }
+  if (typeof value.path !== 'string' || typeof value.message !== 'string') throw new Error('Invalid commit request.')
+  await commitChanges(value.path, value.message)
+})
+ipcMain.handle('git:branch', async (event, request: unknown) => {
+  assertTrustedSender(event)
+  if (!request || typeof request !== 'object') throw new Error('Invalid branch request.')
+  const value = request as { path?: unknown; branch?: unknown; create?: unknown }
+  if (typeof value.path !== 'string' || typeof value.branch !== 'string') throw new Error('Invalid branch request.')
+  await switchBranch(value.path, value.branch, value.create === true)
+})
+ipcMain.handle('git:sync', async (event, request: unknown) => {
+  assertTrustedSender(event)
+  if (!request || typeof request !== 'object') throw new Error('Invalid sync request.')
+  const value = request as { path?: unknown; action?: unknown }
+  if (typeof value.path !== 'string' || !['fetch', 'pull', 'push'].includes(String(value.action))) throw new Error('Invalid sync request.')
+  await syncRepository(value.path, value.action as 'fetch' | 'pull' | 'push')
 })
 
 ipcMain.handle('settings:runtime', (event) => {
