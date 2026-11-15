@@ -295,7 +295,7 @@ function parseOrganizerPlan(raw: string): { summary: string; findings: string[];
         seen.add(op.to.toLowerCase())
       } else if (op.type === 'write' && typeof op.path === 'string' && typeof op.content === 'string' &&
           organizerSafePath(op.path) && op.content.length <= 30000 &&
-          /(^|\\/)(readme|contributing|changelog|docs?)(\\/|\\.|$)/i.test(op.path) &&
+          /(^|\/)(readme|contributing|changelog|docs?)(\/|\.|$)/i.test(op.path) &&
           !seen.has(op.path.toLowerCase())) {
         operations.push({ id: op.id, type: 'write', path: op.path, content: op.content, reason: op.reason })
         seen.add(op.path.toLowerCase())
