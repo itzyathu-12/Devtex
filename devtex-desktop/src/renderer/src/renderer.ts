@@ -355,10 +355,25 @@ function setupRepoOrganizer(): void {
     loading.textContent = 'Reading project context and preparing an organization plan…'
     result.append(loading)
     try {
+      status.textContent = 'Reading repository files and validating paths…'
+      const repositoryContext = await window.api.getRepoOrganizerContext(projectPath)
+      const context = repositoryContext.slice(0, 55000)
       const response = await window.api.sendAIChat({
         messages: [{
           role: 'user',
-          text: 'You are DEVTEX Repo Organizer. Inspect the selected project and the user request: ' + instruction + '\n\nReturn ONLY valid JSON, no Markdown fences, in this shape: {"summary":"...","findings":["..."],"operations":[{"id":"1","type":"move","from":"existing/file","to":"new/file","reason":"..."},{"id":"2","type":"write","path":"file/to/create-or-update","content":"complete UTF-8 content","reason":"..."}]}. Only propose concrete individual-file moves and text-file creation/updates supported by actual inspected paths. Never propose deletes, directory moves, package restructuring, dependency changes, secrets, lockfiles, binaries, .git, node_modules, dist or build output. Maximum 8 operations. Do not claim changes have happened. If no safe action is justified, return an empty operations array.'
+          text: `You are DEVTEX Repo Organizer, a conservative repository-maintenance engineer.
+USER GOAL: ${instruction}
+
+You have actual repository inventory and file contents below. Treat it as the ONLY source of truth. Never invent a path, file, package, script, dependency, or architecture fact. If evidence is insufficient, explain that and return operations: [].
+\n\nREPOSITORY EVIDENCE:\n${context}
+\n\nReturn exactly one JSON object (no markdown): {"summary":"short","findings":["evidence-backed finding"],"operations":[{"id":"op-1","type":"move","from":"EXACT existing relative path","to":"new relative path","reason":"evidence + benefit"},{"id":"op-2","type":"write","path":"relative path","content":"complete valid file content","reason":"..."}]}.
+STRICT RULES:
+- At most 3 operations, one file per operation. No directory moves, delete, bulk refactor, dependency/package/lockfile edits, config rewrites, secrets, binaries, .git, node_modules, build/dist/cache.
+- Move source MUST exactly match inventory. Destination must be a genuinely new path. Do not move a file merely to make the tree look tidy; preserve imports, scripts, and runtime paths.
+- For write: only create a missing documentation file (README/docs) or make a narrowly justified text-file update. Never overwrite code files. Content must be complete, syntactically valid Markdown/plain text, no placeholders, no ellipses, no fabricated commands or claims.
+- Prefer documentation improvements and clearly safe single-file moves. If unsure, no operation.
+- Include evidence paths in findings/reasons. No generic advice disguised as an actionable operation.
+- Return empty operations if the proposal cannot be made safe. Do not say anything was applied.`
         }],
         mode: 'code-review',
         projectPath
