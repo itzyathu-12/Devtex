@@ -16,7 +16,9 @@ import type {
   ProjectFileReadResult,
   ProjectFileEditRequest,
   ProjectFileEditResult,
-  ProjectBugScanResult
+  ProjectBugScanResult,
+  RepoOrganizationApplyRequest,
+  RepoOrganizationApplyResult
 } from '../shared/settings'
 
 declare global {
@@ -45,6 +47,7 @@ declare global {
     sendAIChat(request: GeminiChatRequest): Promise<GeminiChatResponse>
     readProjectFile(request: ProjectFileReadRequest): Promise<ProjectFileReadResult>
     applyProjectFileEdit(request: ProjectFileEditRequest): Promise<ProjectFileEditResult>
+    applyRepoOrganization(request: RepoOrganizationApplyRequest): Promise<RepoOrganizationApplyResult>
     scanProjectForBugs(projectPath: string): Promise<ProjectBugScanResult>
     getIgnoredBugs(): Promise<string[]>
     ignoreBug(identifiers: string | string[]): Promise<string[]>
