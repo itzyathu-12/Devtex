@@ -372,7 +372,7 @@ function setupRepoOrganizer(): void {
     try {
       status.textContent = 'Reading repository files and validating paths…'
       const repositoryContext = await window.api.getRepoOrganizerContext(projectPath)
-      const context = repositoryContext.slice(0, 55000)
+      const context = repositoryContext.slice(0, 3400)
       const response = await window.api.sendAIChat({
         messages: [{
           role: 'user',
