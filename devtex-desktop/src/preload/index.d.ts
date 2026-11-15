@@ -2,7 +2,8 @@ import { ElectronAPI } from '@electron-toolkit/preload'
 import type {
   GitHubConnectionStatus,
   GitHubProfile,
-  GitHubRepositoryResult
+  GitHubRepositoryResult,
+  GitHubRepository
 } from '../shared/github'
 import type { AIProviderId, AppPreferences, AppRuntimeInfo } from '../shared/settings'
 import type { GitRepositoryState, GitDiffResult } from '../shared/git'
@@ -35,6 +36,8 @@ declare global {
     openExternal(url: string): Promise<void>
     onAuthCallback(callback: (url: string) => void): () => void
     connectGitHubRepositories(): Promise<GitHubConnectionStatus>
+    connectGitHubWithToken(token: string): Promise<GitHubConnectionStatus>
+    createGitHubRepository(request: { name: string; description?: string; isPrivate: boolean }): Promise<GitHubRepository>
     getGitHubRepositories(): Promise<GitHubRepositoryResult>
     getGitHubProfile(): Promise<GitHubProfile | null>
     getRuntimeInfo(): Promise<AppRuntimeInfo>
