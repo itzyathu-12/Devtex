@@ -114,7 +114,20 @@ export async function getGitStatus(path: string): Promise<GitRepositoryState> {
   ])
   const header = status.split('\n')[0] || ''
   const aheadBehind = /\[(?:ahead (\d+))?(?:, )?(?:behind (\d+))?\]/.exec(header)
-  const upstream = upstreamOutput.trim()
+  const branch = branchOutput.trim()
+  const remotes = new Map<string, string>()
+  for (const line of remoteOutput.split('\n').filter(Boolean)) {
+    const match = /^(.+?)\s+(.+?)\s+\((fetch|push)\)$/.exec(line)
+    if (match && match[3] === 'fetch') remotes.set(match[1], match[2])
+  }
+  const configuredUpstream = upstreamOutput.trim()
+  const matchingRemoteRefs = branch
+    ? remoteBranchOutput.split('\n').filter((name) => name.endsWith('/' + branch) && !name.endsWith('/HEAD'))
+    : []
+  const inferredUpstream = !configuredUpstream && matchingRemoteRefs.length === 1
+    ? matchingRemoteRefs[0]
+    : ''
+  const upstream = configuredUpstream || inferredUpstream
   const divergence = upstream
     ? await git(root, ['rev-list', '--left-right', '--count', `HEAD...${upstream}`]).catch(() => '')
     : ''
@@ -123,12 +136,6 @@ export async function getGitStatus(path: string): Promise<GitRepositoryState> {
     const [hash, shortHash, subject, author, date] = line.split('\x1f')
     return { hash, shortHash, subject, author, date }
   })
-  const remotes = new Map<string, string>()
-  for (const line of remoteOutput.split('\n').filter(Boolean)) {
-    const match = /^(.+?)\s+(.+?)\s+\((fetch|push)\)$/.exec(line)
-    if (match && match[3] === 'fetch') remotes.set(match[1], match[2])
-  }
-  const branch = branchOutput.trim()
   return {
     root,
     branch: branch || 'HEAD (detached)',
@@ -189,7 +196,54 @@ export async function switchBranch(path: string, branch: string, create = false)
 }
 export async function syncRepository(path: string, action: 'fetch' | 'pull' | 'push'): Promise<void> {
   const root = await repositoryRoot(path)
-  if (action === 'fetch') await git(root, ['fetch', '--all', '--prune'])
-  else if (action === 'pull') await git(root, ['pull', '--ff-only'])
-  else await git(root, ['push', '-u', 'origin', 'HEAD'])
+  if (action === 'fetch') {
+    await git(root, ['fetch', '--all', '--prune'])
+    return
+  }
+
+  const upstream = (await git(root, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}']).catch(() => '')).trim()
+  const branch = (await git(root, ['branch', '--show-current'])).trim()
+  if (!branch) throw new Error('Switch to a branch before syncing this repository.')
+
+  const remoteNames = (await git(root, ['remote']).catch(() => '')).split('\n').filter(Boolean)
+  const remote = remoteNames.includes('origin') ? 'origin' : remoteNames[0]
+  if (!remote) throw new Error('No remote is configured. Add a GitHub remote before syncing.')
+
+  if (action === 'pull') {
+    if (upstream) await git(root, ['pull', '--ff-only'])
+    else {
+      const candidate = `refs/remotes/${remote}/${branch}`
+      const exists = await git(root, ['show-ref', '--verify', '--quiet', candidate]).then(() => true).catch(() => false)
+      if (!exists) throw new Error(`No upstream exists for ${branch}. Fetch first or publish this branch.`)
+      await git(root, ['pull', '--ff-only', remote, branch])
+      await git(root, ['branch', '--set-upstream-to', `${remote}/${branch}`, branch])
+    }
+    return
+  }
+
+  if (upstream) await git(root, ['push'])
+  else await git(root, ['push', '--set-upstream', remote, 'HEAD'])
+}
+
+export async function setGitRemote(path: string, name: string, url: string): Promise<void> {
+  const root = await repositoryRoot(path)
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,50}$/.test(name)) throw new Error('Enter a valid remote name.')
+  if (typeof url !== 'string' || url.length > 2048) throw new Error('Enter a valid remote URL.')
+  let parsed: URL | null = null
+  try { parsed = new URL(url) } catch { /* SSH URL is validated below */ }
+  const validHttps = parsed?.protocol === 'https:' && parsed.hostname === 'github.com' && /^\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\.git)?\/?$/.test(parsed.pathname)
+  const validSsh = /^git@github\.com:[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\.git)?$/.test(url)
+  if (!validHttps && !validSsh) throw new Error('Only GitHub HTTPS or SSH repository URLs are supported.')
+  const existing = (await git(root, ['remote'])).split('\n').filter(Boolean)
+  if (existing.includes(name)) await git(root, ['remote', 'set-url', name, url])
+  else await git(root, ['remote', 'add', name, url])
+}
+
+export async function initializeRepository(path: string, branch = 'main'): Promise<void> {
+  if (typeof path !== 'string' || !path.trim() || path.length > 4096) throw new Error('Choose a valid project folder.')
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,60}$/.test(branch)) throw new Error('Enter a valid initial branch name.')
+  const root = await realpath(path)
+  const existing = await git(root, ['rev-parse', '--show-toplevel']).then(() => true).catch(() => false)
+  if (existing) throw new Error('This folder is already inside a Git repository.')
+  await git(root, ['init', '--initial-branch', branch])
 }
