@@ -28,6 +28,7 @@
         <button class="nav-item" data-page="Projects"><span class="nav-icon">▤</span> Codebases</button>
         <button class="nav-item" data-page="Source Control"><span class="nav-icon">⌘</span> Source Control</button>
         <button class="nav-item" data-page="AI Chat"><span class="nav-icon">✳</span> Assistant</button>
+        <button class="nav-item" data-page="Repo Organizer"><span class="nav-icon">⌘</span> Repo Organizer <span class="nav-count">AI</span></button>
         <button class="nav-item" data-page="Testing Engine"><span class="nav-icon">⌁</span> Diagnostics <span class="nav-count">BETA</span></button>
         <button class="nav-item" data-page="Reports"><span class="nav-icon">◷</span> Run history</button>
       </nav>
@@ -263,6 +264,30 @@
             </div>
           </header>
           <div class="panel ai-chat-panel" id="ai-chat-container"></div>
+        </section>
+
+
+        <section class="workspace-page repo-organizer-view" id="repo-organizer-view" hidden>
+          <header class="workspace-page-heading">
+            <div><div class="eyebrow">AI-POWERED REPOSITORY MAINTENANCE</div><h1>Repo Organizer</h1><p class="subtitle">Understand your repository, find structural clutter, and plan a cleaner codebase.</p></div>
+          </header>
+          <div class="repo-organizer-toolbar">
+            <label for="organizer-project">REPOSITORY</label>
+            <select id="organizer-project"><option value="">Choose a registered project…</option></select>
+            <span id="organizer-provider" class="organizer-provider">Checking AI provider…</span>
+          </div>
+          <div class="organizer-actions">
+            <button type="button" class="organizer-action" data-organizer-task="audit"><strong>Full structure audit</strong><span>Review folders, file placement, naming and maintainability.</span></button>
+            <button type="button" class="organizer-action" data-organizer-task="cleanup"><strong>Find repository clutter</strong><span>Spot likely leftovers, duplicates and generated files.</span></button>
+            <button type="button" class="organizer-action" data-organizer-task="docs"><strong>Improve documentation</strong><span>Identify missing or misplaced project documentation.</span></button>
+            <button type="button" class="organizer-action" data-organizer-task="architecture"><strong>Review architecture</strong><span>Check separation of concerns and folder boundaries.</span></button>
+          </div>
+          <section class="organizer-workspace">
+            <div class="organizer-prompt-head"><span>YOUR INSTRUCTIONS</span><span>AI proposes; you stay in control.</span></div>
+            <textarea id="organizer-prompt" rows="4" maxlength="6000" placeholder="Example: Review this repo and suggest a clean folder structure. Keep the current stack and avoid unnecessary restructuring."></textarea>
+            <div class="organizer-submit-row"><span id="organizer-status" role="status">Select a repository to begin.</span><button type="button" class="button button-primary" id="organizer-run">Analyse repository</button></div>
+            <div class="organizer-result" id="organizer-result" aria-live="polite"><div class="organizer-result-empty"><strong>Waiting for a repository</strong><span>Choose a project, then run an audit or describe what you want reorganized.</span></div></div>
+          </section>
         </section>
 
         <section class="profile-view" id="profile-view" aria-labelledby="profile-title" hidden>
