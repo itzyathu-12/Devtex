@@ -70,6 +70,8 @@ const api = {
     ipcRenderer.invoke('project:read-file', request),
   applyProjectFileEdit: (request: ProjectFileEditRequest): Promise<ProjectFileEditResult> =>
     ipcRenderer.invoke('project:apply-edit', request),
+  getRepoOrganizerContext: (projectPath: string): Promise<string> =>
+    ipcRenderer.invoke('project:organizer-context', projectPath),
   applyRepoOrganization: (request: RepoOrganizationApplyRequest): Promise<RepoOrganizationApplyResult> =>
     ipcRenderer.invoke('project:apply-organization', request),
   scanProjectForBugs: (projectPath: string): Promise<ProjectBugScanResult> =>
