@@ -107,8 +107,11 @@ function parseChanges(output: string): GitFileChange[] {
   })
 }
 
-export async function getGitStatus(path: string): Promise<GitRepositoryState> {
+export async function getGitStatus(path: string, githubToken?: string | null): Promise<GitRepositoryState> {
   const root = await repositoryRoot(path)
+  // Refresh remote-tracking refs so ahead/behind reflects the current GitHub branch.
+  const remotesBeforeStatus = (await git(root, ['remote']).catch(() => '')).split('\n').filter(Boolean)
+  if (remotesBeforeStatus.includes('origin')) await git(root, ['fetch', '--prune', 'origin'], githubToken).catch(() => undefined)
   const [status, branchOutput, localBranchOutput, remoteBranchOutput, upstreamOutput, logOutput, remoteOutput] = await Promise.all([
     git(root, ['status', '--porcelain=v1', '--branch']),
     git(root, ['branch', '--show-current']),
