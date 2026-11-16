@@ -1,4 +1,4 @@
-# Devtex
+# Devtex 
 
 Devtex is a developer workspace tool that provides a CLI and a desktop application for managing projects and interacting with AI providers.
 
