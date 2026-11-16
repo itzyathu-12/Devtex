@@ -199,7 +199,7 @@ ipcMain.handle('github:open-repository', async (event, value: unknown) => {
 
 ipcMain.handle('git:status', async (event, path: unknown) => {
   assertTrustedSender(event)
-  return getGitStatus(await getRegisteredGitPath(path))
+  const projectPath = await getRegisteredGitPath(path)\n  const githubToken = await githubRepositories.getGitAccessToken()\n  return getGitStatus(projectPath, githubToken)
 })
 ipcMain.handle('git:diff', async (event, request: unknown) => {
   assertTrustedSender(event)
