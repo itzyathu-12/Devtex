@@ -22,7 +22,7 @@ jobs:
     env:
       VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
       VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
-      GITHUB_OAUTH_CLIENT_ID: ${{ vars.GITHUB_OAUTH_CLIENT_ID }}
+      GITHUB_OAUTH_CLIENT_ID: ${{ vars.GH_OAUTH_CLIENT_ID }}
     steps:
       - name: Check out source
         uses: actions/checkout@v4
