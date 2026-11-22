@@ -17,6 +17,12 @@ jobs:
     defaults:
       run:
         working-directory: devtex-desktop
+    # Public client configuration is injected at build time; never store private
+    # service-role keys or OAuth client secrets in these variables.
+    env:
+      VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+      GITHUB_OAUTH_CLIENT_ID: ${{ vars.GITHUB_OAUTH_CLIENT_ID }}
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -30,6 +36,15 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Validate public build configuration
+        shell: pwsh
+        run: |
+          $required = @('VITE_SUPABASE_URL', 'VITE_SUPABASE_PUBLISHABLE_KEY', 'GITHUB_OAUTH_CLIENT_ID')
+          $missing = @($required | Where-Object { [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_)) })
+          if ($missing.Count -gt 0) {
+            Write-Error ("Missing GitHub Actions repository Variables: " + ($missing -join ', ') + ". Add them in Settings > Secrets and variables > Actions > Variables.")
+          }
 
       - name: Run tests
         run: npm test
