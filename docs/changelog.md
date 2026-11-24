@@ -1,13 +1,16 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+## [3.0.0] - Rust migration foundation
+
+- Introduced a Cargo workspace shared by DEVTEX CLI, Desktop, and IDE.
+- Expanded `devtex-core` with safe project path resolution, shallow directory listing, workspace inspection, and Git status.
+- Expanded the native Rust CLI with `doctor`, `inspect`, and `status`.
+- Added Tauri 2 application shells and Rust command boundaries for Desktop and IDE.
+- Added independent Vite renderer builds to retain the existing interfaces.
+- Kept Electron applications as compatibility fallbacks during feature parity work.
+- Documented migration boundaries and remaining feature ports.
 
 ## [Unreleased]
 
-- Initial project structure and documentation.
-
-## [0.1.0] - 2024-11-15
-
-- Added CLI and desktop application skeletons.
-- Implemented basic AI provider abstractions.
-- Created initial documentation structure.
+- Port AI provider configuration, encrypted credential storage, GitHub OAuth, and complete Git workflows to Rust/Tauri.
+- Finish Desktop renderer bridge parity and add end-to-end tests before enabling Tauri as the default runtime.

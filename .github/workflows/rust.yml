@@ -1,5 +1,4 @@
 name: Rust workspace
-
 on:
   push:
     branches: [main]
@@ -7,15 +6,18 @@ on:
       - "Cargo.toml"
       - "Cargo.lock"
       - "crates/**"
+      - "devtex-desktop/src-tauri/**"
+      - "Devtex-IDE/src-tauri/**"
       - ".github/workflows/rust.yml"
   pull_request:
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
       - "crates/**"
+      - "devtex-desktop/src-tauri/**"
+      - "Devtex-IDE/src-tauri/**"
       - ".github/workflows/rust.yml"
   workflow_dispatch:
-
 jobs:
   check:
     name: Check and test (${{ matrix.os }})
@@ -26,6 +28,11 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
+      - name: Install Linux Tauri dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential curl wget file libxdo-dev libssl-dev librsvg2-dev patchelf libwebkit2gtk-4.1-dev
       - name: Install stable Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Cache Rust dependencies

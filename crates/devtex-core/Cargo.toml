@@ -3,8 +3,9 @@ name = "devtex-core"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Shared Rust foundation for DEVTEX products"
-
+description = "Shared, UI-agnostic Rust foundation for DEVTEX products"
 [lib]
 name = "devtex_core"
 path = "src/lib.rs"
+[dependencies]
+serde.workspace = true

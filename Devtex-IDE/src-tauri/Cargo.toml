@@ -1,0 +1,12 @@
+[package]
+name = "devtex-ide-tauri"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+[dependencies]
+tauri.workspace = true
+tauri-plugin-dialog.workspace = true
+devtex-core.workspace = true
+serde.workspace = true

@@ -2,184 +2,60 @@
 
 **A developer workspace for building, inspecting, and improving software.**
 
-DEVTEX is evolving into a Rust-powered developer workspace. The repository currently contains the existing Electron desktop and IDE applications alongside a new Rust workspace. The migration is incremental: shared project logic moves into Rust first, while the existing interfaces remain in place until their Tauri replacements are ready.
+DEVTEX v3.0 begins the migration to a shared Rust core and Tauri application runtimes. Existing HTML/CSS/TypeScript interfaces are retained. Electron applications remain available during migration and will only be retired after equivalent features are implemented and verified.
 
 <p align="center">
-  <a href="https://devtex.vercel.app">Website</a> ·
-  <a href="https://github.com/itzyathu-12/Devtex/actions">Builds</a> ·
-  <a href="https://github.com/itzyathu-12/Devtex/issues">Report a bug</a>
+  <a href="https://devtex.vercel.app">Website</a> · <a href="https://github.com/itzyathu-12/Devtex/actions">Builds</a> · <a href="https://github.com/itzyathu-12/Devtex/issues">Report a bug</a>
 </p>
 
----
+## v3.0 architecture
 
-## Architecture migration (v3.0)
-
-The Rust workspace is the foundation for a shared implementation across DEVTEX products:
-
-| Crate | Responsibility |
+| Component | Responsibility |
 | --- | --- |
-| `crates/devtex-core/` | UI-agnostic shared project and developer-tool logic. |
-| `crates/devtex-cli/` | Native Rust command-line application. |
+| `crates/devtex-core/` | Shared Rust project and developer-tool logic |
+| `crates/devtex-cli/` | Native Rust CLI |
+| `devtex-desktop/src-tauri/` | Tauri Desktop runtime and command bridge |
+| `Devtex-IDE/src-tauri/` | Tauri IDE runtime and command bridge |
+| `devtex-desktop/` | Existing Desktop UI and Electron fallback |
+| `Devtex-IDE/` | Existing IDE UI and Electron fallback |
+| `Devtex-CLI/` | Legacy Node CLI retained for compatibility |
 
-The desktop and IDE currently remain on Electron so existing workflows and UI are preserved. Their planned migration target is Tauri, reusing `devtex-core` rather than duplicating backend logic. Electron will only be retired after equivalent Tauri functionality has been implemented and verified.
+The renderer remains HTML/CSS/TypeScript; Tauri uses the operating system WebView and Rust for native operations. This avoids an unnecessary UI rewrite while reducing dependence on Electron/Node after feature parity is complete.
 
-Build the Rust workspace from the repository root:
+## Rust development
+
+Install stable Rust and the Tauri 2 platform prerequisites, then run from the repository root:
 
 ```bash
 cargo check --workspace
 cargo test --workspace
 cargo run -p devtex-cli -- --help
 cargo run -p devtex-cli -- doctor .
+cargo run -p devtex-cli -- inspect .
+cargo run -p devtex-cli -- status .
 ```
 
-## What's inside
+## Run Tauri apps
 
-| Package | Description | Location |
-| --- | --- | --- |
-| **DEVTEX CLI (legacy)** | Existing Node.js CLI retained during migration. | `Devtex-CLI/` |\n| **DEVTEX CLI (Rust)** | New native CLI backed by the shared Rust core. | `crates/devtex-cli/` |
-| **DEVTEX Desktop** | An Electron application for project workflows, Git/GitHub integration, AI assistance, and code inspection. | `devtex-desktop/` |
+From `devtex-desktop/`: `npm install` then `npm run tauri:dev`.
 
-### Desktop capabilities
+From `Devtex-IDE/`: `npm install` then `npm run tauri:dev`.
 
-- **Project workspace** — organize and open local development projects.
-- **Source Control** — review Git changes, branches, commits, and synchronize with remotes.
-- **GitHub integration** — connect an account, browse repositories, create repositories, and clone projects.
-- **AI assistance** — configure supported AI providers and use project-aware assistance.
-- **Testing and reports** — inspect projects with the available analysis tools and review generated findings.
-- **Repository organization** — review repository structure and explore organization suggestions.
+The existing Electron apps remain available with their original `npm run dev` commands.
 
-> DEVTEX is actively developed. Features and workflows may change between releases.
+## Existing Desktop setup
 
-## Getting started
+For the Electron fallback, copy `devtex-desktop/.env.example` to `.env` and set the public client values `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, and `GITHUB_OAUTH_CLIENT_ID`. Never package or commit service-role keys, OAuth client secrets, or private credentials.
 
-### Requirements
+## Migration status
 
-- Windows, macOS, or Linux for desktop development (Windows installer builds target x64).
-- Node.js 22 or newer recommended.
-- npm.
-- Git for source-control features.
+The shared core provides workspace inspection, safe relative-path resolution, shallow project listing, and Git status. The native CLI exposes `doctor`, `inspect`, and `status`. Initial Tauri shells and command boundaries are present; the IDE bridge covers workspace and file operations.
 
-### 1. Clone the repository
+AI provider management, encrypted credential storage, GitHub OAuth/repository management, full Git staging/branch/sync operations, and Desktop renderer bridge parity are not yet ported. Use Electron for those Desktop workflows until migration completion.
 
-```bash
-git clone https://github.com/itzyathu-12/Devtex.git
-cd Devtex
-```
+## Security and performance
 
-### 2. Run DEVTEX Desktop
-
-```bash
-cd devtex-desktop
-npm ci
-```
-
-Create a local `.env` file in `devtex-desktop/` using the example:
-
-```bash
-# macOS / Linux
-cp .env.example .env
-
-# Windows Command Prompt
-copy .env.example .env
-```
-
-Set the following **public client configuration** values in that file:
-
-| Variable | Description |
-| --- | --- |
-| `VITE_SUPABASE_URL` | Supabase project URL. |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable client key. |
-| `GITHUB_OAUTH_CLIENT_ID` | GitHub OAuth App client ID. |
-
-Then start the desktop app:
-
-```bash
-npm run dev
-```
-
-Keep your local `.env` file private. Never put a Supabase service-role key, GitHub OAuth client secret, or other private credential in a `VITE_` variable or in a distributed client application. The example file contains placeholders only.
-
-### 3. Build the Windows installer
-
-From `devtex-desktop/`:
-
-```bash
-npm ci
-npm run build:win
-```
-
-The Windows NSIS installer is generated in:
-
-```
-devtex-desktop/dist/
-```
-
-The automated Windows workflow also builds the installer and uploads it as a GitHub Actions artifact. See [GitHub Actions](https://github.com/itzyathu-12/Devtex/actions).
-
-### 4. Run DEVTEX CLI
-
-```bash
-cd Devtex-CLI
-npm install
-npm run build
-```
-
-To make the `devtex` command available globally on your development machine:
-
-```bash
-npm link
-```
-
-Then:
-
-```bash
-devtex --help
-devtex init
-```
-
-## Development checks
-
-For the desktop application, run these commands from `devtex-desktop/`:
-
-```bash
-npm run typecheck
-npm test
-npm run build
-```
-
-For the CLI, run from `Devtex-CLI/`:
-
-```bash
-npm run build
-npm test
-```
-
-## Repository layout
-
-```
-Devtex/
-├── Cargo.toml               # Rust workspace\n├── crates/                  # Shared Rust core and native CLI\n├── Devtex-CLI/              # Legacy Node.js CLI (migration compatibility)
-├── devtex-desktop/          # Electron desktop application
-│   ├── src/
-│   ├── tests/
-│   ├── .env.example         # Safe configuration template
-│   └── package.json
-├── docs/                    # Project documentation
-├── .github/workflows/       # CI and Windows installer workflow
-├── LICENSE
-└── README.md
-```
-
-## Contributing
-
-Contributions, bug reports, and thoughtful feature suggestions are welcome.
-
-1. Check the existing issues before opening a new one.
-2. For bugs, include your operating system, steps to reproduce, and relevant error output. Remove tokens and other secrets from logs.
-3. Keep changes focused and include tests or documentation updates where appropriate.
-4. Open a pull request describing the change and how you verified it.
-
-See [the contributing guide](docs/contributing.md) for development notes.
+Rust commands validate project paths and do not expose arbitrary shell execution to the renderer. Project listings are shallow and skip common generated folders. File writes have a 2 MB limit. Resource usage will be benchmarked on release builds; no fixed RAM or CPU percentage is promised without measurements.
 
 ## License
 
