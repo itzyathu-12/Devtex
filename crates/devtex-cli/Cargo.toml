@@ -1,0 +1,15 @@
+[package]
+name = "devtex-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Native Rust command-line interface for DEVTEX"
+
+[[bin]]
+name = "devtex"
+path = "src/main.rs"
+
+[dependencies]
+clap.workspace = true
+anyhow.workspace = true
+devtex-core = { path = "../devtex-core" }
