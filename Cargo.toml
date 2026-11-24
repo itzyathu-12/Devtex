@@ -1,0 +1,14 @@
+[workspace]
+resolver = "2"
+members = ["crates/devtex-core", "crates/devtex-cli"]
+
+[workspace.package]
+version = "3.0.0"
+edition = "2021"
+license = "MIT"
+authors = ["DEVTEX Contributors"]
+repository = "https://github.com/itzyathu-12/Devtex"
+
+[workspace.dependencies]
+clap = { version = "4.5", features = ["derive"] }
+anyhow = "1.0"
