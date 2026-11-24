@@ -2,7 +2,7 @@
 
 **A developer workspace for building, inspecting, and improving software.**
 
-DEVTEX brings a command-line interface and an Electron desktop workspace together in one repository. The goal is to make everyday development workflows easier to access—from working with projects in the terminal to reviewing code, connecting GitHub, and using AI-assisted tools in a desktop environment.
+DEVTEX is evolving into a Rust-powered developer workspace. The repository currently contains the existing Electron desktop and IDE applications alongside a new Rust workspace. The migration is incremental: shared project logic moves into Rust first, while the existing interfaces remain in place until their Tauri replacements are ready.
 
 <p align="center">
   <a href="https://devtex.vercel.app">Website</a> ·
@@ -12,11 +12,31 @@ DEVTEX brings a command-line interface and an Electron desktop workspace togethe
 
 ---
 
+## Architecture migration (v3.0)
+
+The Rust workspace is the foundation for a shared implementation across DEVTEX products:
+
+| Crate | Responsibility |
+| --- | --- |
+| `crates/devtex-core/` | UI-agnostic shared project and developer-tool logic. |
+| `crates/devtex-cli/` | Native Rust command-line application. |
+
+The desktop and IDE currently remain on Electron so existing workflows and UI are preserved. Their planned migration target is Tauri, reusing `devtex-core` rather than duplicating backend logic. Electron will only be retired after equivalent Tauri functionality has been implemented and verified.
+
+Build the Rust workspace from the repository root:
+
+```bash
+cargo check --workspace
+cargo test --workspace
+cargo run -p devtex-cli -- --help
+cargo run -p devtex-cli -- doctor .
+```
+
 ## What's inside
 
 | Package | Description | Location |
 | --- | --- | --- |
-| **DEVTEX CLI** | A terminal interface for initializing and managing development projects. | `Devtex-CLI/` |
+| **DEVTEX CLI (legacy)** | Existing Node.js CLI retained during migration. | `Devtex-CLI/` |\n| **DEVTEX CLI (Rust)** | New native CLI backed by the shared Rust core. | `crates/devtex-cli/` |
 | **DEVTEX Desktop** | An Electron application for project workflows, Git/GitHub integration, AI assistance, and code inspection. | `devtex-desktop/` |
 
 ### Desktop capabilities
@@ -138,7 +158,7 @@ npm test
 
 ```
 Devtex/
-├── Devtex-CLI/              # Command-line application
+├── Cargo.toml               # Rust workspace\n├── crates/                  # Shared Rust core and native CLI\n├── Devtex-CLI/              # Legacy Node.js CLI (migration compatibility)
 ├── devtex-desktop/          # Electron desktop application
 │   ├── src/
 │   ├── tests/
